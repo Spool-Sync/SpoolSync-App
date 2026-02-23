@@ -1,0 +1,94 @@
+{
+  "name": "PrusaLink",
+  "id": "prusalink",
+  "version": "1.0.0",
+  "description": "Integration for Prusa printers via PrusaLink local API (runs directly on the printer or a Raspberry Pi on your network).",
+  "api": {
+    "base_url": null,
+    "endpoints": {
+      "status": "/api/v1/status",
+      "job_details": "/api/v1/status",
+      "printer_model": "/api/v1/info"
+    },
+    "authentication": {
+      "type": "headerKey",
+      "header": "X-Api-Key"
+    },
+    "request_options": {
+      "timeout_seconds": 5,
+      "headers": {
+        "Accept": "application/json"
+      }
+    }
+  },
+  "data_mapping": {
+    "status": {
+      "source": "response.body.printer.state",
+      "mapping": {
+        "IDLE": "OPERATIONAL",
+        "READY": "OPERATIONAL",
+        "BUSY": "OPERATIONAL",
+        "FINISHED": "OPERATIONAL",
+        "STOPPED": "OPERATIONAL",
+        "PRINTING": "PRINTING",
+        "PAUSED": "PAUSED",
+        "ERROR": "ERROR",
+        "ATTENTION": "ERROR"
+      }
+    },
+    "printer_model": {
+      "source": "response.body.name",
+      "default": "Prusa Printer"
+    },
+    "print_progress_percentage": {
+      "source": "response.body.job.progress",
+      "default": 0
+    },
+    "time_remaining_seconds": {
+      "source": "response.body.job.time_remaining",
+      "default": null
+    },
+    "time_printing_seconds": {
+      "source": "response.body.job.time_printing",
+      "default": null
+    },
+    "filament_material": {
+      "source": "response.body.printer.filament",
+      "default": null
+    }
+  },
+  "connection_fields": [
+    {
+      "key": "base_url",
+      "label": "Printer URL",
+      "type": "text",
+      "placeholder": "http://192.168.1.100",
+      "required": true,
+      "hint": "The local IP address or hostname of your printer running PrusaLink"
+    },
+    {
+      "key": "apiKey",
+      "label": "API Key",
+      "type": "password",
+      "placeholder": "your-prusalink-api-key",
+      "required": true,
+      "hint": "Found in the printer LCD menu under Settings → Network → PrusaLink, or in the PrusaLink web interface"
+    }
+  ],
+  "status_display_labels": {
+    "OPERATIONAL": "Idle",
+    "PRINTING": "Printing",
+    "PAUSED": "Paused",
+    "ERROR": "Error",
+    "OFFLINE": "Offline",
+    "UNKNOWN": "Unknown"
+  },
+  "capabilities": {
+    "supports_reload_command": true
+  },
+  "contributor": {
+    "name": "SpoolSync",
+    "github_username": "spoolsync",
+    "contributed_date": "2026-02-20"
+  }
+}

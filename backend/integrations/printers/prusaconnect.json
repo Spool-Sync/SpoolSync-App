@@ -1,0 +1,63 @@
+{
+  "name": "PrusaConnect",
+  "id": "prusaconnect",
+  "version": "1.0.0",
+  "description": "Integration for Prusa printers via PrusaConnect cloud API.",
+  "api": {
+    "base_url": "https://connect.prusa3d.com",
+    "endpoints": {
+      "status": "/app/printers",
+      "print_info": "/app/printers/{printer_uuid}/job",
+      "printer_model": "/app/printers/{printer_uuid}",
+      "job_details": "/app/printers/{printer_uuid}/job"
+    },
+    "authentication": {
+      "type": "apiKey",
+      "apiKey_env_var": "PRUSACONNECT_API_KEY",
+      "scheme": "Token"
+    },
+    "request_options": {
+      "timeout_seconds": 10,
+      "headers": {
+        "Content-Type": "application/json"
+      }
+    }
+  },
+  "data_mapping": {
+    "printer_model": {
+      "source": "response.body.printer_type",
+      "default": "Unknown Prusa Printer"
+    },
+    "status": {
+      "source": "response.body.connect_state",
+      "mapping": {
+        "ONLINE": "OPERATIONAL",
+        "PRINTING": "PRINTING",
+        "PAUSED": "PAUSED",
+        "ERROR": "ERROR",
+        "OFFLINE": "OFFLINE"
+      }
+    },
+    "print_progress_percentage": {
+      "source": "response.body.progress",
+      "default": 0
+    },
+    "current_spool_weight_grams": {
+      "source": "response.body.filament.weight_grams",
+      "default": null
+    }
+  },
+  "status_display_labels": {
+    "OPERATIONAL": "Online",
+    "PRINTING": "Printing",
+    "PAUSED": "Paused",
+    "ERROR": "Error",
+    "OFFLINE": "Offline",
+    "UNKNOWN": "Unknown"
+  },
+  "contributor": {
+    "name": "SpoolSync",
+    "github_username": "spoolsync",
+    "contributed_date": "2024-01-01"
+  }
+}

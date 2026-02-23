@@ -1,0 +1,299 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  USER
+}
+
+enum OrderStatus {
+  IN_STOCK
+  REORDER_NEEDED
+  ORDERED
+  DELIVERED
+}
+
+enum PrinterStatus {
+  OPERATIONAL
+  PRINTING
+  PAUSED
+  ERROR
+  OFFLINE
+  UNKNOWN
+}
+
+enum StorageLocationType {
+  DRYER
+  LONG_TERM_STORAGE
+  OPEN_SHELF
+  OTHER
+}
+
+enum SpoolStatus {
+  ACTIVE
+  SPENT
+}
+
+enum SpoolHolderType {
+  ACTIVE
+  PASSIVE
+}
+
+enum SpoolHolderAssignment {
+  PRINTER
+  STORAGE
+  INGEST_POINT
+}
+
+model User {
+  userId       String   @id @default(uuid())
+  username     String   @unique
+  email        String   @unique
+  passwordHash String?
+  roles        Role[]   @default([USER])
+  provider     String?
+  providerId   String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  preferences UserPreference?
+
+  @@map("users")
+}
+
+model OidcConfig {
+  id           String   @id @default(uuid())
+  issuer       String
+  clientId     String
+  clientSecret String
+  callbackUrl  String
+  enabled      Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("oidc_configs")
+}
+
+model UserPreference {
+  userId          String   @id
+  user            User     @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  favoriteBrands  String[] @default([])
+  ingestStationId String?
+  useIngestMode   Boolean  @default(false)
+  defaultScaleId  String?
+  autoOpenOnScale Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("user_preferences")
+}
+
+model FilamentType {
+  filamentTypeId String   @id @default(uuid())
+  name           String
+  brand          String
+  color          String?
+  colorHex       String?
+  material       String
+  diameter_mm       Float    @default(1.75)
+  density_g_cm3     Float?
+  spoolWeight_g     Float    @default(200)
+  nozzleTempMin  Int?
+  nozzleTempMax  Int?
+  bedTempMin     Int?
+  bedTempMax     Int?
+  reorderThreshold_g Float?
+  sourceApiId       String?
+  custom         Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  spools Spool[]
+  orders Order[]
+
+  @@map("filament_types")
+}
+
+model Spool {
+  spoolId             String      @id @default(uuid())
+  filamentTypeId      String
+  initialWeight_g     Float
+  currentWeight_g     Float
+  printStartWeight_g  Float?
+  dateAdded           DateTime    @default(now())
+  currentLocationId   String?
+  nfcTagId            String?     @unique
+  orderStatus         OrderStatus @default(IN_STOCK)
+  status              SpoolStatus @default(ACTIVE)
+  notes               String?
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  filamentType    FilamentType      @relation(fields: [filamentTypeId], references: [filamentTypeId])
+  spoolHolder     SpoolHolder?
+  storageLocations StorageLocationSpool[]
+  weightHistory   WeightHistory[]
+  printJobs       PrintJob[]
+
+  @@map("spools")
+}
+
+model WeightHistory {
+  id         String   @id @default(uuid())
+  spoolId    String
+  weight_g   Float
+  source     String   @default("manual")
+  recordedAt DateTime @default(now())
+
+  spool Spool @relation(fields: [spoolId], references: [spoolId], onDelete: Cascade)
+
+  @@index([spoolId, recordedAt])
+  @@map("weight_history")
+}
+
+model Printer {
+  printerId         String        @id @default(uuid())
+  name              String
+  type              String
+  connectionDetails Json
+  status            PrinterStatus @default(UNKNOWN)
+  currentJobDetails Json?
+  printingStartedAt DateTime?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  spoolHolders  SpoolHolder[]
+  printJobs     PrintJob[]
+
+  @@map("printers")
+}
+
+model Esp32Device {
+  deviceId         String    @id @default(uuid())
+  name             String
+  uniqueDeviceId   String    @unique
+  ipAddress        String?
+  lastSeen         DateTime?
+  detectedChannels Json?     // [{ i2cAddress, deviceType, subChannel, suggestedChannel, capability }]
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  spoolHolders SpoolHolder[]
+
+  @@map("esp32_devices")
+}
+
+model SpoolHolder {
+  spoolHolderId       String                @id @default(uuid())
+  name                String
+  type                SpoolHolderType       @default(PASSIVE)
+  assignmentType      SpoolHolderAssignment @default(INGEST_POINT)
+  locationDescription String?
+  attachedPrinterId   String?
+  storageLocationId   String?
+  esp32DeviceId       String?
+  channel             Int?
+  nfcTagId            String?               @unique
+  currentWeight_g     Float?
+  associatedSpoolId   String?               @unique
+  hasLoadCell         Boolean               @default(false)
+  loadCellOffset      Float?
+  loadCellScale       Float?
+  lastRawAdc          Int?
+  hasNfc              Boolean               @default(false)
+  nfcReaderChannel    Int?
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+
+  attachedPrinter Printer?         @relation(fields: [attachedPrinterId], references: [printerId])
+  storageLocation StorageLocation? @relation(fields: [storageLocationId], references: [storageLocationId])
+  esp32Device     Esp32Device?     @relation(fields: [esp32DeviceId], references: [deviceId])
+  associatedSpool Spool?           @relation(fields: [associatedSpoolId], references: [spoolId])
+
+  @@map("spool_holders")
+}
+
+model StorageLocation {
+  storageLocationId String              @id @default(uuid())
+  name              String
+  type              StorageLocationType @default(OTHER)
+  description       String?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  spools       StorageLocationSpool[]
+  spoolHolders SpoolHolder[]
+  zones        StorageZone[]
+
+  @@map("storage_locations")
+}
+
+model StorageLocationSpool {
+  storageLocationId String
+  spoolId           String
+  zoneId            String?
+  linkedAt          DateTime @default(now())
+
+  storageLocation StorageLocation @relation(fields: [storageLocationId], references: [storageLocationId])
+  spool           Spool           @relation(fields: [spoolId], references: [spoolId])
+  zone            StorageZone?    @relation(fields: [zoneId], references: [zoneId])
+
+  @@id([storageLocationId, spoolId])
+  @@map("storage_location_spools")
+}
+
+model StorageZone {
+  zoneId            String   @id @default(uuid())
+  storageLocationId String
+  name              String
+  description       String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  storageLocation StorageLocation        @relation(fields: [storageLocationId], references: [storageLocationId], onDelete: Cascade)
+  spools          StorageLocationSpool[]
+
+  @@map("storage_zones")
+}
+
+model PrintJob {
+  printJobId     String    @id @default(uuid())
+  printerId      String
+  spoolId        String?
+  filamentUsed_g Float?
+  fileName       String?
+  startedAt      DateTime
+  completedAt    DateTime  @default(now())
+  createdAt      DateTime  @default(now())
+
+  printer Printer @relation(fields: [printerId], references: [printerId], onDelete: Cascade)
+  spool   Spool?  @relation(fields: [spoolId], references: [spoolId], onDelete: SetNull)
+
+  @@map("print_jobs")
+}
+
+model Order {
+  orderId               String      @id @default(uuid())
+  filamentTypeId        String
+  quantity              Float
+  unit                  String      @default("spools")
+  status                OrderStatus @default(ORDERED)
+  orderDate             DateTime    @default(now())
+  estimatedDeliveryDate DateTime?
+  retailer              String?
+  orderUrl              String?
+  notes                 String?
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+
+  filamentType FilamentType @relation(fields: [filamentTypeId], references: [filamentTypeId])
+
+  @@map("orders")
+}

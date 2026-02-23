@@ -1,0 +1,44 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Environment
+.env
+**/.env
+!.env.example
+
+# Build outputs
+dist/
+build/
+**/dist/
+**/build/
+
+# Prisma
+backend/prisma/migrations/
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+*.override.yml
+
+# Uploads
+backend/uploads/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+
+# Unpublished files
+firmware
+helm
+.claude
+deploy.sh
+website
