@@ -83,7 +83,7 @@ This project is licensed under the terms of the LICENSE file in this repository.
 
 ## Contributing
 
-Pull requests and issues are welcome! See CONTRIBUTING.md (if available) or open an issue to get started.
+Pull requests and issues are welcome! Open an issue to get started.
 
 ---
 
