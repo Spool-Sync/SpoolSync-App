@@ -115,7 +115,6 @@
 
 ## Documentation
 
-- **Wiki:** https://github.com/Spool-Sync/SpoolSync-App/wiki
 - **API:** See `backend/prisma/schema.prisma` and backend source
 - **Integrations:** See `backend/integrations/printers/` for JSON config examples
 
