@@ -1,5 +1,7 @@
 # SpoolSync
 
+[Official Website](https://spool-sync.com/)
+
 **SpoolSync** is an advanced, user-friendly filament management platform for 3D printing enthusiasts and print farms. It provides real-time tracking, inventory management, and seamless integration with printers and hardware, all in a self-hosted, privacy-first package.
 
 ---
@@ -44,18 +46,22 @@
 ## Getting Started
 
 1. **Clone the repository:**
+
    ```sh
    git clone git@github.com:Spool-Sync/SpoolSync-App.git
    cd SpoolSync-App
    ```
+
 2. **Configure environment variables:**
 
 - Copy `.env.example` to `.env` and edit as needed. (Do not commit `.env` to git.)
 
-3. **Start with Docker Compose:**
+1. **Start with Docker Compose:**
+
    ```sh
    docker-compose up --build
    ```
+
 4. **Access the web UI:**
    - Visit `http://localhost:8080` (or your configured port)
 
