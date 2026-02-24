@@ -14,6 +14,7 @@ export function configurePassport(passport) {
       try {
         const user = await prisma.user.findUnique({
           where: { userId: jwtPayload.sub },
+          include: { customRoles: true },
         });
         if (!user) return done(null, false);
         return done(null, user);
@@ -28,11 +29,12 @@ import passport from 'passport';
 
 export const authenticate = passport.authenticate('jwt', { session: false });
 
-export function requireRole(...roles) {
+export function requirePermission(...perms) {
   return (req, res, next) => {
     if (!req.user) return res.status(401).json({ message: 'Unauthorized' });
-    const hasRole = roles.some((role) => req.user.roles.includes(role));
-    if (!hasRole) return res.status(403).json({ message: 'Forbidden' });
-    next();
+    if (req.user.isSuperAdmin) return next();
+    const userPerms = new Set(req.user.customRoles.flatMap((r) => r.permissions));
+    if (perms.every((p) => userPerms.has(p))) return next();
+    return res.status(403).json({ message: 'Forbidden' });
   };
 }

@@ -24,6 +24,7 @@ export async function logout(req, res) {
 }
 
 export async function getMe(req, res) {
+  // eslint-disable-next-line no-unused-vars
   const { passwordHash, ...user } = req.user;
   res.json(user);
 }
@@ -38,7 +39,13 @@ export async function updateMe(req, res, next) {
 }
 
 export async function getPermissions(req, res) {
-  res.json({ roles: req.user.roles });
+  const { isSuperAdmin, customRoles = [] } = req.user;
+  const permissions = [...new Set(customRoles.flatMap((r) => r.permissions))];
+  res.json({
+    isSuperAdmin,
+    roles: customRoles.map((r) => ({ id: r.id, name: r.name, permissions: r.permissions })),
+    permissions,
+  });
 }
 
 export async function createUser(req, res, next) {

@@ -8,7 +8,21 @@ export const useAuthStore = defineStore('auth', () => {
   const preferences = ref({ favoriteBrands: [], ingestStationId: null, useIngestMode: false, defaultScaleId: null, autoOpenOnScale: true });
 
   const isAuthenticated = computed(() => !!token.value);
-  const isAdmin = computed(() => user.value?.roles?.includes('ADMIN') ?? false);
+
+  const isSuperAdmin = computed(() => user.value?.isSuperAdmin ?? false);
+
+  const permissions = computed(() => {
+    if (isSuperAdmin.value) return [];
+    return [...new Set((user.value?.customRoles ?? []).flatMap((r) => r.permissions))];
+  });
+
+  function hasPermission(perm) {
+    if (isSuperAdmin.value) return true;
+    return permissions.value.includes(perm);
+  }
+
+  // Backward-compat: treat super-admin or anyone who can manage users as "admin"
+  const isAdmin = computed(() => isSuperAdmin.value || hasPermission('users:view'));
 
   async function login(email, password) {
     const { data } = await apiClient.post('/users/login', { email, password });
@@ -84,7 +98,8 @@ export const useAuthStore = defineStore('auth', () => {
 
   return {
     user, token, preferences,
-    isAuthenticated, isAdmin,
+    isAuthenticated, isAdmin, isSuperAdmin, permissions,
+    hasPermission,
     login, loginWithToken, logout,
     fetchMe, fetchPreferences, updatePreferences,
     restoreSession,

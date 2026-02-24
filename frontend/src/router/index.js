@@ -97,7 +97,13 @@ const routes = [
     path: "/admin/users",
     name: "Users",
     component: () => import("@/views/UsersView.vue"),
-    meta: { adminOnly: true },
+    meta: { permission: "users:view" },
+  },
+  {
+    path: "/admin/roles",
+    name: "Roles",
+    component: () => import("@/views/RolesView.vue"),
+    meta: { permission: "roles:view" },
   },
 ];
 
@@ -111,7 +117,7 @@ router.beforeEach((to) => {
   if (!to.meta.public && !authStore.isAuthenticated) {
     return { name: "Login", query: { redirect: to.fullPath } };
   }
-  if (to.meta.adminOnly && !authStore.isAdmin) {
+  if (to.meta.permission && !authStore.hasPermission(to.meta.permission)) {
     return { name: "Dashboard" };
   }
 });

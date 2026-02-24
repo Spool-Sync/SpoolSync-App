@@ -1,6 +1,7 @@
 import { Router } from "express";
 import authRoutes from "./auth.js";
 import userRoutes from "./users.js";
+import rolesRoutes from "./roles.js";
 import filamentTypeRoutes from "./filamentTypes.js";
 import spoolRoutes from "./spools.js";
 import printerRoutes from "./printers.js";
@@ -14,6 +15,7 @@ const router = Router();
 
 router.use("/auth", authRoutes);
 router.use("/users", userRoutes);
+router.use("/roles", rolesRoutes);
 router.use("/filament-types", filamentTypeRoutes);
 router.use("/spools", spoolRoutes);
 router.use("/printers", printerRoutes);

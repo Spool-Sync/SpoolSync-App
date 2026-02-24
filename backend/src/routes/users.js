@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import * as userController from '../controllers/userController.js';
-import { authenticate, requireRole } from '../middleware/auth.js';
+import { authenticate, requirePermission } from '../middleware/auth.js';
 import * as userPreferenceService from '../services/userPreferenceService.js';
 
 const router = Router();
@@ -36,10 +36,10 @@ router.put('/me/preferences', authenticate, async (req, res, next) => {
 });
 
 // Admin routes
-router.post('/', authenticate, requireRole('ADMIN'), userController.createUser);
-router.get('/', authenticate, requireRole('ADMIN'), userController.listUsers);
-router.get('/:userId', authenticate, requireRole('ADMIN'), userController.getUser);
-router.put('/:userId', authenticate, requireRole('ADMIN'), userController.updateUser);
-router.delete('/:userId', authenticate, requireRole('ADMIN'), userController.deleteUser);
+router.post('/', authenticate, requirePermission('users:create'), userController.createUser);
+router.get('/', authenticate, requirePermission('users:view'), userController.listUsers);
+router.get('/:userId', authenticate, requirePermission('users:view'), userController.getUser);
+router.put('/:userId', authenticate, requirePermission('users:edit'), userController.updateUser);
+router.delete('/:userId', authenticate, requirePermission('users:delete'), userController.deleteUser);
 
 export default router;

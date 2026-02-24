@@ -25,14 +25,17 @@
         />
 
         <v-select
-          v-model="formData.roles"
-          :items="roleOptions"
+          v-model="formData.roleIds"
+          :items="availableRoles"
+          item-title="name"
+          item-value="id"
           label="Roles"
           variant="outlined"
           density="compact"
           multiple
           chips
           closable-chips
+          :loading="rolesLoading"
           class="mb-2"
         />
 
@@ -77,7 +80,7 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue';
+import { ref, reactive, onMounted } from 'vue';
 import apiClient from '@/services/apiClient';
 import { useUiStore } from '@/store/ui';
 
@@ -91,14 +94,26 @@ const form = ref(null);
 const saving = ref(false);
 const showPassword = ref(false);
 const confirmPassword = ref('');
-
-const roleOptions = ['ADMIN', 'USER'];
+const availableRoles = ref([]);
+const rolesLoading = ref(false);
 
 const formData = reactive({
   username: props.user?.username || '',
   email: props.user?.email || '',
-  roles: props.user?.roles ? [...props.user.roles] : ['USER'],
+  roleIds: props.user?.customRoles ? props.user.customRoles.map((r) => r.id) : [],
   password: '',
+});
+
+onMounted(async () => {
+  rolesLoading.value = true;
+  try {
+    const { data } = await apiClient.get('/roles');
+    availableRoles.value = data;
+  } catch {
+    // silently ignore — roles list stays empty
+  } finally {
+    rolesLoading.value = false;
+  }
 });
 
 async function handleSubmit() {
@@ -110,7 +125,7 @@ async function handleSubmit() {
     const payload = {
       username: formData.username,
       email: formData.email,
-      roles: formData.roles,
+      roleIds: formData.roleIds,
     };
     if (formData.password) {
       payload.password = formData.password;

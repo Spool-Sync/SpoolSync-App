@@ -4,7 +4,7 @@ import jwt from 'jsonwebtoken';
 import fetch from 'node-fetch';
 import * as oidcConfigService from '../services/oidcConfigService.js';
 import * as userService from '../services/userService.js';
-import { authenticate, requireRole } from '../middleware/auth.js';
+import { authenticate, requirePermission } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -119,15 +119,22 @@ router.get('/oidc/callback', async (req, res, next) => {
       return res.redirect('/login?error=oidc_failed');
     }
 
+    // Extract SSO group/role claims (support both 'roles' and 'groups')
+    const ssoRoles = [
+      ...(Array.isArray(claims.roles) ? claims.roles : []),
+      ...(Array.isArray(claims.groups) ? claims.groups : []),
+    ].filter((r) => typeof r === 'string' && r.length > 0);
+
     const user = await userService.findOrCreateOidcUser({
       provider: config.issuer,
       providerId: claims.sub,
       email: claims.email,
       displayName: claims.name,
+      ssoRoles,
     });
 
     const appToken = jwt.sign(
-      { sub: user.userId, roles: user.roles },
+      { sub: user.userId },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
@@ -141,7 +148,7 @@ router.get('/oidc/callback', async (req, res, next) => {
 });
 
 // ── Admin: Get OIDC config ────────────────────────────────────────────────
-router.get('/oidc-config', authenticate, requireRole('ADMIN'), async (_req, res, next) => {
+router.get('/oidc-config', authenticate, requirePermission('settings:view'), async (_req, res, next) => {
   try {
     const config = await oidcConfigService.getConfig();
     if (!config) return res.json(null);
@@ -153,7 +160,7 @@ router.get('/oidc-config', authenticate, requireRole('ADMIN'), async (_req, res,
 });
 
 // ── Admin: Upsert OIDC config ─────────────────────────────────────────────
-router.put('/oidc-config', authenticate, requireRole('ADMIN'), async (req, res, next) => {
+router.put('/oidc-config', authenticate, requirePermission('settings:edit'), async (req, res, next) => {
   try {
     const { issuer, clientId, clientSecret, callbackUrl, enabled } = req.body;
     const config = await oidcConfigService.upsertConfig({ issuer, clientId, clientSecret, callbackUrl, enabled });

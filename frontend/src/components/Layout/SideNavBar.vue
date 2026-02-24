@@ -94,10 +94,16 @@ const navItems = computed(() => [
   { title: "Devices",    icon: "mdi-chip",                     to: "/esp32-devices" },
   { title: "Weigh",      icon: "mdi-scale-balance",            to: "/weigh" },
 
-  ...(authStore.isAdmin ? [
-    { divider: true, key: "admin" },
-    { title: "Users",    icon: "mdi-account-group-outline",    to: "/admin/users" },
-  ] : []),
+  ...(() => {
+    const canUsers = authStore.hasPermission('users:view');
+    const canRoles = authStore.hasPermission('roles:view');
+    if (!canUsers && !canRoles) return [];
+    return [
+      { divider: true, key: "admin" },
+      ...(canUsers ? [{ title: "Users", icon: "mdi-account-group-outline", to: "/admin/users" }] : []),
+      ...(canRoles ? [{ title: "Roles", icon: "mdi-shield-account-outline", to: "/admin/roles" }] : []),
+    ];
+  })(),
 ]);
 
 const themeLogo = computed(() => {

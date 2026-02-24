@@ -27,16 +27,24 @@
       rounded="xl"
       hover
     >
-      <template #item.roles="{ item }">
+      <template #item.customRoles="{ item }">
         <div class="d-flex gap-1 flex-wrap">
           <v-chip
-            v-for="role in item.roles"
-            :key="role"
-            :color="role === 'ADMIN' ? 'warning' : 'primary'"
+            v-if="item.isSuperAdmin"
+            color="warning"
             size="x-small"
             variant="tonal"
           >
-            {{ role }}
+            Super Admin
+          </v-chip>
+          <v-chip
+            v-for="role in item.customRoles"
+            :key="role.id"
+            :color="role.source === 'sso' ? 'info' : roleColor(role.name)"
+            size="x-small"
+            variant="tonal"
+          >
+            {{ role.name }}
           </v-chip>
         </div>
       </template>
@@ -93,6 +101,13 @@ import apiClient from '@/services/apiClient';
 import { useAuthStore } from '@/store/auth';
 import { useUiStore } from '@/store/ui';
 
+const ROLE_COLORS = ['primary', 'secondary', 'info', 'success', 'teal', 'indigo', 'purple'];
+function roleColor(name) {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
+  return ROLE_COLORS[hash % ROLE_COLORS.length];
+}
+
 const authStore = useAuthStore();
 const uiStore = useUiStore();
 
@@ -108,7 +123,7 @@ const deleting = ref(false);
 const headers = [
   { title: 'Username', key: 'username' },
   { title: 'Email', key: 'email' },
-  { title: 'Roles', key: 'roles', sortable: false },
+  { title: 'Roles', key: 'customRoles', sortable: false },
   { title: 'Joined', key: 'createdAt' },
   { title: 'Actions', key: 'actions', sortable: false, align: 'end' },
 ];
