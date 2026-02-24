@@ -7,9 +7,17 @@
     <v-dialog
       :model-value="!!uiStore.editingSpoolId"
       max-width="500"
-      @update:model-value="(v) => { if (!v) closeGlobalEdit(); }"
+      @update:model-value="
+        (v) => {
+          if (!v) closeGlobalEdit();
+        }
+      "
     >
-      <v-card v-if="uiStore.editingSpoolId && !globalEditSpool" rounded="xl" class="pa-6 d-flex align-center justify-center">
+      <v-card
+        v-if="uiStore.editingSpoolId && !globalEditSpool"
+        rounded="xl"
+        class="pa-6 d-flex align-center justify-center"
+      >
         <v-progress-circular indeterminate />
       </v-card>
       <SpoolForm
@@ -35,7 +43,7 @@
         </template>
       </v-banner>
 
-      <v-container fluid class="pa-2 pa-sm-4">
+      <v-container fluid class="pa-2 pa-sm-4 page-view">
         <RouterView />
       </v-container>
     </v-main>
@@ -64,15 +72,15 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, watch } from 'vue';
-import SideNavBar from './SideNavBar.vue';
-import HeaderBar from './HeaderBar.vue';
-import SpoolForm from '@/components/forms/SpoolForm.vue';
-import { useUiStore } from '@/store/ui';
-import { useAuthStore } from '@/store/auth';
-import { useSpoolHolderStore } from '@/store/spoolHolders';
-import { useSpoolStore } from '@/store/spools';
-import { startVersionPolling } from '@/services/versionService';
+import { ref, onMounted, onUnmounted, watch } from "vue";
+import SideNavBar from "./SideNavBar.vue";
+import HeaderBar from "./HeaderBar.vue";
+import SpoolForm from "@/components/forms/SpoolForm.vue";
+import { useUiStore } from "@/store/ui";
+import { useAuthStore } from "@/store/auth";
+import { useSpoolHolderStore } from "@/store/spoolHolders";
+import { useSpoolStore } from "@/store/spools";
+import { startVersionPolling } from "@/services/versionService";
 
 const uiStore = useUiStore();
 const authStore = useAuthStore();
@@ -86,9 +94,14 @@ const globalEditSpool = ref(null);
 watch(
   () => uiStore.editingSpoolId,
   async (spoolId) => {
-    if (!spoolId) { globalEditSpool.value = null; return; }
+    if (!spoolId) {
+      globalEditSpool.value = null;
+      return;
+    }
     globalEditSpool.value = null;
-    globalEditSpool.value = await spoolStore.fetchSpool(spoolId).catch(() => null);
+    globalEditSpool.value = await spoolStore
+      .fetchSpool(spoolId)
+      .catch(() => null);
     if (!globalEditSpool.value) uiStore.closeSpoolEdit();
   },
 );
@@ -120,17 +133,17 @@ function reload() {
 // When a new version is available, reload as soon as the page is hidden
 // (user switches tab or locks phone). If already hidden, reload immediately.
 function onVisibilityChange() {
-  if (document.visibilityState === 'hidden') reload();
+  if (document.visibilityState === "hidden") reload();
 }
 
 const stopAutoReloadWatch = watch(
   () => uiStore.updateAvailable,
   (available) => {
     if (!available) return;
-    if (document.visibilityState === 'hidden') {
+    if (document.visibilityState === "hidden") {
       reload();
     } else {
-      document.addEventListener('visibilitychange', onVisibilityChange);
+      document.addEventListener("visibilitychange", onVisibilityChange);
     }
   },
 );
@@ -141,6 +154,13 @@ onMounted(() => {
 
 onUnmounted(() => {
   stopAutoReloadWatch();
-  document.removeEventListener('visibilitychange', onVisibilityChange);
+  document.removeEventListener("visibilitychange", onVisibilityChange);
 });
 </script>
+
+<style scoped>
+.page-view {
+  height: calc(100vh - 64px); /* Full height minus header and banner */
+  overflow: auto;
+}
+</style>
