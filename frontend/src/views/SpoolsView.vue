@@ -132,6 +132,12 @@
       :open-print-tag-data="ingestOpenPrintTagData"
       @created="handleCreated"
     />
+
+    <RefillSpoolDialog
+      v-model="showRefill"
+      :spool="refillingSpool"
+      @refilled="handleRefilled"
+    />
   </div>
 </template>
 
@@ -141,6 +147,7 @@ import { useRoute, useRouter } from 'vue-router';
 import SpoolTable from '@/components/tables/SpoolTable.vue';
 import SpoolForm from '@/components/forms/SpoolForm.vue';
 import IngestSpoolDialog from '@/components/dialogs/IngestSpoolDialog.vue';
+import RefillSpoolDialog from '@/components/dialogs/RefillSpoolDialog.vue';
 import { useSpoolStore } from '@/store/spools';
 import { useStorageLocationStore } from '@/store/storageLocations';
 import { useUiStore } from '@/store/ui';
@@ -154,7 +161,9 @@ const locationStore = useStorageLocationStore();
 const uiStore = useUiStore();
 const showForm = ref(false);
 const showIngest = ref(false);
+const showRefill = ref(false);
 const editingSpool = ref(null);
+const refillingSpool = ref(null);
 const ingestPrefillTag = ref(null);
 const ingestOpenPrintTagData = ref(null);
 
@@ -407,8 +416,14 @@ async function handleMarkSpent(spoolId) {
   spoolStore.fetchSpools();
 }
 
-async function handleRefill(spoolId) {
-  await spoolStore.refillSpool(spoolId);
+function handleRefill(spoolId) {
+  refillingSpool.value = tableSpools.value.find((s) => s.spoolId === spoolId) ?? null;
+  showRefill.value = true;
+}
+
+async function handleRefilled() {
+  showRefill.value = false;
+  refillingSpool.value = null;
   await loadPage();
   spoolStore.fetchSpools();
 }
