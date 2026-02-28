@@ -6,7 +6,10 @@
       <v-col cols="12" md="6">
         <!-- Profile -->
         <v-card rounded="xl" class="mb-4">
-          <v-card-title class="pa-4 pb-2">Profile</v-card-title>
+          <v-card-title class="pa-4 pb-2 d-flex align-center gap-2">
+            <v-icon color="primary">mdi-account-circle</v-icon>
+            Profile
+          </v-card-title>
           <v-card-text>
             <v-text-field
               v-model="username"
@@ -31,7 +34,10 @@
 
         <!-- Appearance -->
         <v-card rounded="xl" class="mb-4">
-          <v-card-title class="pa-4 pb-2">Appearance</v-card-title>
+          <v-card-title class="pa-4 pb-2 d-flex align-center gap-2">
+            <v-icon color="primary">mdi-palette</v-icon>
+            Appearance
+          </v-card-title>
           <v-card-text>
             <v-switch
               :model-value="uiStore.theme === 'dark'"
@@ -45,7 +51,10 @@
 
         <!-- Change Password -->
         <v-card rounded="xl" class="mb-4">
-          <v-card-title class="pa-4 pb-2">Change Password</v-card-title>
+          <v-card-title class="pa-4 pb-2 d-flex align-center gap-2">
+            <v-icon color="primary">mdi-lock-reset</v-icon>
+            Change Password
+          </v-card-title>
           <v-card-text>
             <v-text-field
               v-model="newPassword"
@@ -84,7 +93,10 @@
       <v-col cols="12" md="6">
         <!-- Integrations -->
         <v-card rounded="xl" class="mb-4">
-          <v-card-title class="pa-4 pb-2">Printer Integrations</v-card-title>
+          <v-card-title class="pa-4 pb-2 d-flex align-center gap-2">
+            <v-icon color="primary">mdi-printer-3d</v-icon>
+            Printer Integrations
+          </v-card-title>
           <v-card-text>
             <v-list density="compact">
               <v-list-item
@@ -225,7 +237,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue';
+import { ref, reactive, computed, watch, onMounted } from 'vue';
 import apiClient from '@/services/apiClient';
 import { useAuthStore } from '@/store/auth';
 import { useUiStore } from '@/store/ui';
@@ -241,6 +253,11 @@ const email = ref(authStore.user?.email || '');
 // ── Scan & Scale prefs ────────────────────────────────────────────────────────
 const defaultScaleId = ref(authStore.preferences.defaultScaleId ?? null);
 const autoOpenOnScale = ref(authStore.preferences.autoOpenOnScale ?? true);
+
+// Preferences may still be loading when this component mounts (async restoreSession).
+// Keep local refs in sync so the selects populate once preferences arrive.
+watch(() => authStore.preferences.defaultScaleId, (val) => { defaultScaleId.value = val ?? null; });
+watch(() => authStore.preferences.autoOpenOnScale, (val) => { autoOpenOnScale.value = val ?? true; });
 
 const scaleHolders = computed(() => {
   const items = [];
