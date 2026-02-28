@@ -5,7 +5,7 @@ import apiClient from '@/services/apiClient';
 export const useAuthStore = defineStore('auth', () => {
   const user = ref(null);
   const token = ref(null);
-  const preferences = ref({ favoriteBrands: [], ingestStationId: null, useIngestMode: false, defaultScaleId: null, autoOpenOnScale: true });
+  const preferences = ref({ favoriteBrands: [], ingestStationId: null, useIngestMode: false, defaultScaleId: null, autoOpenOnScale: true, spoolSortBy: 'createdAt', spoolSortOrder: 'desc', spoolGroupBy: 'material' });
 
   const isAuthenticated = computed(() => !!token.value);
 
@@ -45,7 +45,7 @@ export const useAuthStore = defineStore('auth', () => {
     } finally {
       token.value = null;
       user.value = null;
-      preferences.value = { favoriteBrands: [], ingestStationId: null, useIngestMode: false, defaultScaleId: null, autoOpenOnScale: true };
+      preferences.value = { favoriteBrands: [], ingestStationId: null, useIngestMode: false, defaultScaleId: null, autoOpenOnScale: true, spoolSortBy: 'createdAt', spoolSortOrder: 'desc', spoolGroupBy: 'material' };
       localStorage.removeItem('token');
     }
   }
@@ -64,6 +64,9 @@ export const useAuthStore = defineStore('auth', () => {
         useIngestMode: data.useIngestMode ?? false,
         defaultScaleId: data.defaultScaleId ?? null,
         autoOpenOnScale: data.autoOpenOnScale ?? true,
+        spoolSortBy: data.spoolSortBy ?? 'createdAt',
+        spoolSortOrder: data.spoolSortOrder ?? 'desc',
+        spoolGroupBy: data.spoolGroupBy ?? 'material',
       };
     } catch {
       // silently fall back to defaults
@@ -81,6 +84,9 @@ export const useAuthStore = defineStore('auth', () => {
         useIngestMode: data.useIngestMode ?? false,
         defaultScaleId: data.defaultScaleId ?? null,
         autoOpenOnScale: data.autoOpenOnScale ?? true,
+        spoolSortBy: data.spoolSortBy ?? 'createdAt',
+        spoolSortOrder: data.spoolSortOrder ?? 'desc',
+        spoolGroupBy: data.spoolGroupBy ?? 'material',
       };
     } catch {
       // keep optimistic update on failure

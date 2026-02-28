@@ -23,11 +23,16 @@ router.get('/me/preferences', authenticate, async (req, res, next) => {
 
 router.put('/me/preferences', authenticate, async (req, res, next) => {
   try {
-    const { favoriteBrands, ingestStationId, useIngestMode } = req.body;
+    const { favoriteBrands, ingestStationId, useIngestMode, defaultScaleId, autoOpenOnScale, spoolSortBy, spoolSortOrder, spoolGroupBy } = req.body;
     const prefs = await userPreferenceService.updatePreferences(req.user.userId, {
       favoriteBrands,
       ingestStationId,
       useIngestMode,
+      defaultScaleId,
+      autoOpenOnScale,
+      spoolSortBy,
+      spoolSortOrder,
+      spoolGroupBy,
     });
     res.json(prefs);
   } catch (err) {

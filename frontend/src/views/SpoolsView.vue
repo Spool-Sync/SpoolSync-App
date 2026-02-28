@@ -105,12 +105,61 @@
       </v-col>
     </v-row>
 
+    <!-- Sort + Group controls -->
+    <v-row dense class="mb-3 align-center">
+      <v-col cols="auto" class="d-flex align-center ga-2">
+        <v-select
+          v-model="sortBy"
+          :items="sortOptions"
+          item-title="label"
+          item-value="value"
+          label="Sort by"
+          variant="outlined"
+          density="compact"
+          hide-details
+          style="min-width: 152px"
+          @update:modelValue="onSortChange"
+        />
+        <v-btn-toggle
+          v-model="sortOrder"
+          mandatory
+          density="compact"
+          variant="outlined"
+          @update:modelValue="onSortChange"
+        >
+          <v-btn value="asc"  size="small">
+            <v-icon size="18">mdi-sort-ascending</v-icon>
+          </v-btn>
+          <v-btn value="desc" size="small">
+            <v-icon size="18">mdi-sort-descending</v-icon>
+          </v-btn>
+        </v-btn-toggle>
+      </v-col>
+      <v-col cols="auto">
+        <v-select
+          v-model="groupBy"
+          :items="groupOptions"
+          item-title="label"
+          item-value="value"
+          label="Group by"
+          variant="outlined"
+          density="compact"
+          hide-details
+          style="min-width: 140px"
+          @update:modelValue="onGroupChange"
+        />
+      </v-col>
+    </v-row>
+
     <SpoolTable
       :spools="tableSpools"
       :loading="tableLoading"
       :total="total"
       :page="page"
       :items-per-page="pageSize"
+      :sort-by="sortBy"
+      :sort-order="sortOrder"
+      :group-by="groupBy"
       @edit="openEdit"
       @delete="handleDelete"
       @mark-spent="handleMarkSpent"
@@ -151,6 +200,7 @@ import RefillSpoolDialog from '@/components/dialogs/RefillSpoolDialog.vue';
 import { useSpoolStore } from '@/store/spools';
 import { useStorageLocationStore } from '@/store/storageLocations';
 import { useUiStore } from '@/store/ui';
+import { useAuthStore } from '@/store/auth';
 import apiClient from '@/services/apiClient';
 import { isOpenPrintTag, parseOpenPrintTag } from '@/utils/openPrintTag';
 
@@ -159,6 +209,7 @@ const router = useRouter();
 const spoolStore = useSpoolStore();
 const locationStore = useStorageLocationStore();
 const uiStore = useUiStore();
+const authStore = useAuthStore();
 const showForm = ref(false);
 const showIngest = ref(false);
 const showRefill = ref(false);
@@ -309,8 +360,20 @@ const tableLoading = ref(false);
 const total = ref(0);
 const page = ref(1);
 const pageSize = ref(25);
-const sortBy = ref(null);
-const sortOrder = ref(null);
+const sortBy = ref('createdAt');
+const sortOrder = ref('desc');
+const groupBy = ref('material');
+
+const sortOptions = [
+  { label: 'Date Added', value: 'createdAt' },
+  { label: 'Weight',     value: 'weight' },
+  { label: 'Brand',      value: 'brand' },
+  { label: 'Color (Hue)', value: 'hue' },
+];
+const groupOptions = [
+  { label: 'Material', value: 'material' },
+  { label: 'None',     value: 'none' },
+];
 
 // Debounce handle for search
 let searchTimer = null;
@@ -336,6 +399,7 @@ async function loadPage() {
       ...(locationFilter.value && { locationId: locationFilter.value }),
       ...(sortBy.value && { sortBy: sortBy.value }),
       ...(sortOrder.value && { sortOrder: sortOrder.value }),
+      ...(groupBy.value && groupBy.value !== 'none' && { groupBy: groupBy.value }),
     });
     tableSpools.value = result.items;
     total.value = result.total;
@@ -347,13 +411,33 @@ async function loadPage() {
 function onTableOptions({ page: p, itemsPerPage: ps, sortBy: sb, sortOrder: so }) {
   page.value = p;
   pageSize.value = ps;
-  sortBy.value = sb;
-  sortOrder.value = so;
+  if (sb !== null) {
+    sortBy.value = sb;
+    sortOrder.value = so;
+    authStore.updatePreferences({ spoolSortBy: sb, spoolSortOrder: so });
+  }
   loadPage();
+}
+
+function onSortChange() {
+  page.value = 1;
+  loadPage();
+  authStore.updatePreferences({ spoolSortBy: sortBy.value, spoolSortOrder: sortOrder.value });
+}
+
+function onGroupChange() {
+  page.value = 1;
+  loadPage();
+  authStore.updatePreferences({ spoolGroupBy: groupBy.value });
 }
 
 onMounted(async () => {
   console.log('[SpoolsView] mounted, nfcSupported:', nfcSupported.value);
+
+  // Apply saved sort/group preferences before first load
+  sortBy.value    = authStore.preferences.spoolSortBy    ?? 'createdAt';
+  sortOrder.value = authStore.preferences.spoolSortOrder ?? 'desc';
+  groupBy.value   = authStore.preferences.spoolGroupBy   ?? 'material';
 
   const [, filters] = await Promise.all([
     loadPage(),

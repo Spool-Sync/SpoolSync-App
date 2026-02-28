@@ -88,12 +88,25 @@ export async function create(data) {
   return spool;
 }
 
-export async function list({ locationId, printerId, orderStatus, search, material, color, page, pageSize, sortBy, sortOrder } = {}) {
+function hexToHue(hex) {
+  if (!hex || hex.length < 7) return 361;
+  const r = parseInt(hex.slice(1, 3), 16) / 255;
+  const g = parseInt(hex.slice(3, 5), 16) / 255;
+  const b = parseInt(hex.slice(5, 7), 16) / 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  const d = max - min;
+  if (d < 0.001) return 361; // achromatic — sort to end
+  let h;
+  if (max === r) h = ((g - b) / d % 6) * 60;
+  else if (max === g) h = ((b - r) / d + 2) * 60;
+  else h = ((r - g) / d + 4) * 60;
+  return h < 0 ? h + 360 : h;
+}
+
+export async function list({ locationId, printerId, orderStatus, search, material, color, page, pageSize, sortBy, sortOrder, groupBy } = {}) {
   const pg = parseInt(page) || 1;
   const ps = Math.min(parseInt(pageSize) || 25, 200);
 
-  const allowedSortFields = { weight: 'currentWeight_g', createdAt: 'createdAt' };
-  const orderByField = allowedSortFields[sortBy] ?? 'createdAt';
   const orderByDir = sortOrder === 'asc' ? 'asc' : 'desc';
 
   const filamentTypeFilter = {
@@ -118,14 +131,35 @@ export async function list({ locationId, printerId, orderStatus, search, materia
     }),
   };
 
+  // Hue sort: compute hue from colorHex in application layer
+  if (sortBy === 'hue') {
+    const allItems = await prisma.spool.findMany({ where, include: spoolInclude });
+    allItems.sort((a, b) => {
+      if (groupBy === 'material') {
+        const mc = (a.filamentType?.material ?? '').localeCompare(b.filamentType?.material ?? '');
+        if (mc !== 0) return mc;
+      }
+      const hA = hexToHue(a.filamentType?.colorHex);
+      const hB = hexToHue(b.filamentType?.colorHex);
+      return orderByDir === 'asc' ? hA - hB : hB - hA;
+    });
+    return { items: allItems.slice((pg - 1) * ps, pg * ps), total: allItems.length, page: pg, pageSize: ps };
+  }
+
+  // Prisma-based sorts
+  const prismaSort = {
+    weight:    { currentWeight_g: orderByDir },
+    createdAt: { createdAt: orderByDir },
+    brand:     { filamentType: { brand: orderByDir } },
+    material:  { filamentType: { material: orderByDir } },
+  };
+  const primaryOrder = prismaSort[sortBy] ?? { createdAt: orderByDir };
+  const orderBy = groupBy === 'material' && sortBy !== 'material'
+    ? [{ filamentType: { material: 'asc' } }, primaryOrder]
+    : primaryOrder;
+
   const [items, total] = await Promise.all([
-    prisma.spool.findMany({
-      where,
-      include: spoolInclude,
-      orderBy: { [orderByField]: orderByDir },
-      skip: (pg - 1) * ps,
-      take: ps,
-    }),
+    prisma.spool.findMany({ where, include: spoolInclude, orderBy, skip: (pg - 1) * ps, take: ps }),
     prisma.spool.count({ where }),
   ]);
 

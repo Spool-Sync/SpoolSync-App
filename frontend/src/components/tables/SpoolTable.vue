@@ -7,12 +7,31 @@
     :items-per-page="itemsPerPage"
     :items-per-page-options="perPageOptions"
     :page="page"
+    :sort-by="tableSortBy"
+    :group-by="tableGroupBy"
     :row-props="rowProps"
     rounded="xl"
     hover
     @update:options="onOptions"
     @click:row="(_event, { item }) => $router.push(`/spools/${item.spoolId}`)"
   >
+    <template #group-header="{ item, columns, toggleGroup, isGroupOpen }">
+      <tr>
+        <td :colspan="columns.length" class="bg-surface-variant">
+          <div class="d-flex align-center ga-2 py-1">
+            <v-btn
+              :icon="isGroupOpen(item) ? 'mdi-chevron-down' : 'mdi-chevron-right'"
+              size="x-small"
+              variant="text"
+              density="compact"
+              @click="toggleGroup(item)"
+            />
+            <v-chip size="small" variant="tonal" label>{{ item.value }}</v-chip>
+            <span class="text-caption text-medium-emphasis">{{ item.items.length }} spool{{ item.items.length === 1 ? '' : 's' }}</span>
+          </div>
+        </td>
+      </tr>
+    </template>
     <template #item.filament="{ item }">
       <div class="d-flex align-center">
         <v-tooltip
@@ -169,6 +188,9 @@ const props = defineProps({
   total: { type: Number, default: 0 },
   page: { type: Number, default: 1 },
   itemsPerPage: { type: Number, default: 25 },
+  sortBy: { type: String, default: 'createdAt' },
+  sortOrder: { type: String, default: 'desc' },
+  groupBy: { type: String, default: 'none' },
 });
 const emit = defineEmits([
   "edit",
@@ -193,6 +215,16 @@ const headers = computed(() => [
     : []),
   { title: "Actions", key: "actions", sortable: false, align: "end" },
 ]);
+
+// Map toolbar sort to Vuetify column sort indicator (only 'weight' maps to a column)
+const tableSortBy = computed(() =>
+  props.sortBy === 'weight' ? [{ key: 'weight', order: props.sortOrder }] : []
+);
+
+// Map groupBy preference to Vuetify group-by config
+const tableGroupBy = computed(() =>
+  props.groupBy === 'material' ? [{ key: 'filamentType.material', order: 'asc' }] : []
+);
 
 function rowProps({ item }) {
   return item.status === "SPENT" ? { style: "opacity: 0.6" } : {};
