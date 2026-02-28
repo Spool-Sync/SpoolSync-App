@@ -139,6 +139,10 @@ export async function list({ locationId, printerId, orderStatus, search, materia
         const mc = (a.filamentType?.material ?? '').localeCompare(b.filamentType?.material ?? '');
         if (mc !== 0) return mc;
       }
+      if (groupBy === 'brand') {
+        const bc = (a.filamentType?.brand ?? '').localeCompare(b.filamentType?.brand ?? '');
+        if (bc !== 0) return bc;
+      }
       const hA = hexToHue(a.filamentType?.colorHex);
       const hB = hexToHue(b.filamentType?.colorHex);
       return orderByDir === 'asc' ? hA - hB : hB - hA;
@@ -154,9 +158,11 @@ export async function list({ locationId, printerId, orderStatus, search, materia
     material:  { filamentType: { material: orderByDir } },
   };
   const primaryOrder = prismaSort[sortBy] ?? { createdAt: orderByDir };
-  const orderBy = groupBy === 'material' && sortBy !== 'material'
-    ? [{ filamentType: { material: 'asc' } }, primaryOrder]
-    : primaryOrder;
+  const groupPrimarySort =
+    groupBy === 'material' && sortBy !== 'material' ? { filamentType: { material: 'asc' } } :
+    groupBy === 'brand'    && sortBy !== 'brand'    ? { filamentType: { brand: 'asc' } } :
+    null;
+  const orderBy = groupPrimarySort ? [groupPrimarySort, primaryOrder] : primaryOrder;
 
   const [items, total] = await Promise.all([
     prisma.spool.findMany({ where, include: spoolInclude, orderBy, skip: (pg - 1) * ps, take: ps }),

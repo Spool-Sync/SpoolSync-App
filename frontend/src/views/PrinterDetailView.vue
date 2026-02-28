@@ -145,37 +145,22 @@
 
                   <!-- Actions -->
                   <div class="d-flex flex-column ga-1">
-                    <v-tooltip v-if="printer.status === 'PRINTING'" location="left" text="Cannot change filament while printing">
-                      <template #activator="{ props: tip }">
-                        <span v-bind="tip">
-                          <v-btn
-                            size="x-small"
-                            variant="tonal"
-                            :color="holder.associatedSpool ? 'error' : 'primary'"
-                            :icon="holder.associatedSpool ? 'mdi-tray-minus' : 'mdi-tray-plus'"
-                            disabled
-                          />
-                        </span>
-                      </template>
-                    </v-tooltip>
-                    <template v-else>
-                      <v-btn
-                        v-if="holder.associatedSpool"
-                        size="x-small"
-                        variant="tonal"
-                        color="error"
-                        icon="mdi-tray-minus"
-                        @click="handleRemoveSpool(holder)"
-                      />
-                      <v-btn
-                        v-else
-                        size="x-small"
-                        variant="tonal"
-                        color="primary"
-                        icon="mdi-tray-plus"
-                        @click="openAssignDialog(holder)"
-                      />
-                    </template>
+                    <v-btn
+                      v-if="holder.associatedSpool"
+                      size="x-small"
+                      variant="tonal"
+                      color="error"
+                      icon="mdi-tray-minus"
+                      @click="handleRemoveSpool(holder)"
+                    />
+                    <v-btn
+                      v-else
+                      size="x-small"
+                      variant="tonal"
+                      color="primary"
+                      icon="mdi-tray-plus"
+                      @click="openAssignDialog(holder)"
+                    />
                     <v-btn
                       size="x-small"
                       variant="tonal"
@@ -214,6 +199,27 @@
           <v-spacer />
           <v-btn @click="assignDialog = false">Cancel</v-btn>
           <v-btn color="primary" :disabled="!assignSpoolId" :loading="assigning" @click="confirmAssign">Load</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- Printing override confirmation dialog -->
+    <v-dialog v-model="printingConfirmDialog" max-width="440" persistent>
+      <v-card rounded="xl">
+        <v-card-title class="pa-4 d-flex align-center ga-2">
+          <v-icon color="warning">mdi-alert</v-icon>
+          Printer is Printing
+        </v-card-title>
+        <v-card-text>
+          <strong>{{ printer?.name }}</strong> is currently printing and may be actively using filament in this slot.
+          Changing filament mid-print can cause a failed print or a jam.
+          <br /><br />
+          Are you sure you want to proceed?
+        </v-card-text>
+        <v-card-actions class="pa-4 pt-0">
+          <v-spacer />
+          <v-btn @click="printingConfirmDialog = false">Cancel</v-btn>
+          <v-btn color="warning" :loading="printingConfirmLoading" @click="confirmPrintingOverride">Override</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -303,6 +309,11 @@ const assignTarget = ref(null);
 const assignSpoolId = ref(null);
 const assigning = ref(false);
 
+// Printing-override confirmation
+const printingConfirmDialog = ref(false);
+const printingConfirmLoading = ref(false);
+let pendingOverrideAction = null;
+
 const configDialog = ref(false);
 const configTarget = ref(null);
 const configuring = ref(false);
@@ -378,6 +389,19 @@ function openAssignDialog(holder) {
 }
 
 async function confirmAssign() {
+  if (!assignSpoolId.value) return;
+
+  // If the printer is currently printing, ask for confirmation first
+  if (printer.value?.status === 'PRINTING') {
+    pendingOverrideAction = async () => {
+      printer.value = await printerStore.assignSpool(assignTarget.value.spoolHolderId, assignSpoolId.value, true);
+      assignDialog.value = false;
+    };
+    assignDialog.value = false;
+    printingConfirmDialog.value = true;
+    return;
+  }
+
   assigning.value = true;
   printer.value = await printerStore.assignSpool(assignTarget.value.spoolHolderId, assignSpoolId.value);
   assignDialog.value = false;
@@ -385,7 +409,26 @@ async function confirmAssign() {
 }
 
 async function handleRemoveSpool(holder) {
+  if (printer.value?.status === 'PRINTING') {
+    pendingOverrideAction = async () => {
+      printer.value = await printerStore.removeSpool(holder.spoolHolderId, true);
+    };
+    printingConfirmDialog.value = true;
+    return;
+  }
   printer.value = await printerStore.removeSpool(holder.spoolHolderId);
+}
+
+async function confirmPrintingOverride() {
+  if (!pendingOverrideAction) return;
+  printingConfirmLoading.value = true;
+  try {
+    await pendingOverrideAction();
+  } finally {
+    printingConfirmLoading.value = false;
+    printingConfirmDialog.value = false;
+    pendingOverrideAction = null;
+  }
 }
 
 function openConfigDialog(holder) {

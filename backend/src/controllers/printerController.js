@@ -76,7 +76,7 @@ export async function configureHolder(req, res, next) {
 
 export async function assignSpool(req, res, next) {
   try {
-    const printer = await printerService.assignSpoolToHolder(req.params.spoolHolderId, req.body.spoolId);
+    const printer = await printerService.assignSpoolToHolder(req.params.spoolHolderId, req.body.spoolId, !!req.body.force);
     res.json(printer);
   } catch (err) {
     next(err);
@@ -85,7 +85,7 @@ export async function assignSpool(req, res, next) {
 
 export async function removeSpool(req, res, next) {
   try {
-    const printer = await printerService.removeSpoolFromHolder(req.params.spoolHolderId);
+    const printer = await printerService.removeSpoolFromHolder(req.params.spoolHolderId, !!req.query.force);
     res.json(printer);
   } catch (err) {
     next(err);

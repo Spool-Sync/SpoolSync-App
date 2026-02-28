@@ -7,7 +7,6 @@
     :items-per-page="itemsPerPage"
     :items-per-page-options="perPageOptions"
     :page="page"
-    :sort-by="tableSortBy"
     :group-by="tableGroupBy"
     :row-props="rowProps"
     rounded="xl"
@@ -16,16 +15,10 @@
     @click:row="(_event, { item }) => $router.push(`/spools/${item.spoolId}`)"
   >
     <template #group-header="{ item, columns, toggleGroup, isGroupOpen }">
-      <tr>
+      <tr class="cursor-pointer" @click="toggleGroup(item)">
         <td :colspan="columns.length" class="bg-surface-variant">
           <div class="d-flex align-center ga-2 py-1">
-            <v-btn
-              :icon="isGroupOpen(item) ? 'mdi-chevron-down' : 'mdi-chevron-right'"
-              size="x-small"
-              variant="text"
-              density="compact"
-              @click="toggleGroup(item)"
-            />
+            <v-icon size="18" color="medium-emphasis">{{ isGroupOpen(item) ? 'mdi-chevron-down' : 'mdi-chevron-right' }}</v-icon>
             <v-chip size="small" variant="tonal" label>{{ item.value }}</v-chip>
             <span class="text-caption text-medium-emphasis">{{ item.items.length }} spool{{ item.items.length === 1 ? '' : 's' }}</span>
           </div>
@@ -188,8 +181,6 @@ const props = defineProps({
   total: { type: Number, default: 0 },
   page: { type: Number, default: 1 },
   itemsPerPage: { type: Number, default: 25 },
-  sortBy: { type: String, default: 'createdAt' },
-  sortOrder: { type: String, default: 'desc' },
   groupBy: { type: String, default: 'none' },
 });
 const emit = defineEmits([
@@ -205,7 +196,7 @@ const perPageOptions = [10, 25, 50, 100];
 
 const headers = computed(() => [
   { title: "Filament", key: "filament", sortable: false },
-  { title: "Weight", key: "weight", sortable: true },
+  { title: "Weight", key: "weight", sortable: false },
   { title: "Status", key: "orderStatus", sortable: false },
   ...(!smAndDown.value
     ? [
@@ -216,15 +207,12 @@ const headers = computed(() => [
   { title: "Actions", key: "actions", sortable: false, align: "end" },
 ]);
 
-// Map toolbar sort to Vuetify column sort indicator (only 'weight' maps to a column)
-const tableSortBy = computed(() =>
-  props.sortBy === 'weight' ? [{ key: 'weight', order: props.sortOrder }] : []
-);
-
 // Map groupBy preference to Vuetify group-by config
-const tableGroupBy = computed(() =>
-  props.groupBy === 'material' ? [{ key: 'filamentType.material', order: 'asc' }] : []
-);
+const tableGroupBy = computed(() => {
+  if (props.groupBy === 'material') return [{ key: 'filamentType.material', order: 'asc' }];
+  if (props.groupBy === 'brand')    return [{ key: 'filamentType.brand',    order: 'asc' }];
+  return [];
+});
 
 function rowProps({ item }) {
   return item.status === "SPENT" ? { style: "opacity: 0.6" } : {};

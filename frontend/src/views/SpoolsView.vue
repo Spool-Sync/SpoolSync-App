@@ -157,8 +157,6 @@
       :total="total"
       :page="page"
       :items-per-page="pageSize"
-      :sort-by="sortBy"
-      :sort-order="sortOrder"
       :group-by="groupBy"
       @edit="openEdit"
       @delete="handleDelete"
@@ -372,6 +370,7 @@ const sortOptions = [
 ];
 const groupOptions = [
   { label: 'Material', value: 'material' },
+  { label: 'Brand',    value: 'brand' },
   { label: 'None',     value: 'none' },
 ];
 
@@ -408,14 +407,9 @@ async function loadPage() {
   }
 }
 
-function onTableOptions({ page: p, itemsPerPage: ps, sortBy: sb, sortOrder: so }) {
+function onTableOptions({ page: p, itemsPerPage: ps }) {
   page.value = p;
   pageSize.value = ps;
-  if (sb !== null) {
-    sortBy.value = sb;
-    sortOrder.value = so;
-    authStore.updatePreferences({ spoolSortBy: sb, spoolSortOrder: so });
-  }
   loadPage();
 }
 

@@ -26,6 +26,7 @@ app.use(passport.initialize());
 app.use('/api/v1', apiRoutes);
 
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
+app.get('/api/version', (_req, res) => res.json({ version: process.env.APP_VERSION || 'dev' }));
 
 app.use(notFoundHandler);
 app.use(errorHandler);

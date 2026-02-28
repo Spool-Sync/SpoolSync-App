@@ -61,14 +61,14 @@ export const usePrinterStore = defineStore('printers', () => {
     return data;
   }
 
-  async function assignSpool(spoolHolderId, spoolId) {
-    const { data } = await apiClient.put(`/printers/holders/${spoolHolderId}/assign-spool`, { spoolId });
+  async function assignSpool(spoolHolderId, spoolId, force = false) {
+    const { data } = await apiClient.put(`/printers/holders/${spoolHolderId}/assign-spool`, { spoolId, force });
     handlePrinterUpdated(data);
     return data;
   }
 
-  async function removeSpool(spoolHolderId) {
-    const { data } = await apiClient.delete(`/printers/holders/${spoolHolderId}/assign-spool`);
+  async function removeSpool(spoolHolderId, force = false) {
+    const { data } = await apiClient.delete(`/printers/holders/${spoolHolderId}/assign-spool`, { params: { force: force ? '1' : undefined } });
     handlePrinterUpdated(data);
     return data;
   }

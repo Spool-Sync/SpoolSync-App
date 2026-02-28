@@ -226,14 +226,14 @@ export async function configureHolder(spoolHolderId, { esp32DeviceId, channel, h
 }
 
 // Assign a spool to a printer slot (also sets spool.currentPrinterId)
-export async function assignSpoolToHolder(spoolHolderId, spoolId) {
+export async function assignSpoolToHolder(spoolHolderId, spoolId, force = false) {
   const holder = await prisma.spoolHolder.findUniqueOrThrow({
     where: { spoolHolderId },
     select: { attachedPrinterId: true, assignmentType: true },
   });
 
-  // Block assignment while printer is printing
-  if (holder.attachedPrinterId) {
+  // Block assignment while printer is printing (unless force=true)
+  if (!force && holder.attachedPrinterId) {
     const printerStatus = await prisma.printer.findUnique({
       where: { printerId: holder.attachedPrinterId },
       select: { status: true, name: true },
@@ -280,14 +280,14 @@ export async function assignSpoolToHolder(spoolHolderId, spoolId) {
 }
 
 // Remove a spool from a holder slot
-export async function removeSpoolFromHolder(spoolHolderId) {
+export async function removeSpoolFromHolder(spoolHolderId, force = false) {
   const holder = await prisma.spoolHolder.findUniqueOrThrow({
     where: { spoolHolderId },
     select: { associatedSpoolId: true, attachedPrinterId: true },
   });
 
-  // Block removal while printer is printing
-  if (holder.attachedPrinterId) {
+  // Block removal while printer is printing (unless force=true)
+  if (!force && holder.attachedPrinterId) {
     const printerStatus = await prisma.printer.findUnique({
       where: { printerId: holder.attachedPrinterId },
       select: { status: true, name: true },

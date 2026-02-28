@@ -36,10 +36,23 @@
       :headers="headers"
       :items="filteredGroups"
       :loading="spoolStore.loading"
+      :sort-by="inventorySortBy"
+      :group-by="inventoryGroupBy"
       item-value="filamentTypeId"
       rounded="xl"
       hover
     >
+      <template #group-header="{ item, columns, toggleGroup, isGroupOpen }">
+        <tr class="cursor-pointer" @click="toggleGroup(item)">
+          <td :colspan="columns.length" class="bg-surface-variant">
+            <div class="d-flex align-center ga-2 py-1">
+              <v-icon size="18" color="medium-emphasis">{{ isGroupOpen(item) ? 'mdi-chevron-down' : 'mdi-chevron-right' }}</v-icon>
+              <v-chip size="small" variant="tonal" label>{{ item.value }}</v-chip>
+              <span class="text-caption text-medium-emphasis">{{ item.items.length }} type{{ item.items.length === 1 ? '' : 's' }}</span>
+            </div>
+          </td>
+        </tr>
+      </template>
       <template #item.filament="{ item }">
         <div class="d-flex align-center">
           <v-tooltip :text="item.color || 'No color'" location="top">
@@ -84,8 +97,10 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { useSpoolStore } from '@/store/spools';
+import { useAuthStore } from '@/store/auth';
 
 const spoolStore = useSpoolStore();
+const authStore = useAuthStore();
 
 const search = ref('');
 const materialFilter = ref(null);
@@ -95,8 +110,23 @@ const headers = [
   { title: 'Material', key: 'material', sortable: true },
   { title: 'Color', key: 'color', sortable: true },
   { title: 'Spools', key: 'spoolCount', sortable: true },
-  { title: 'Remaining', key: 'remaining', sortable: true, sort: (a, b) => a.totalRemaining_g - b.totalRemaining_g },
+  { title: 'Remaining', key: 'remaining', sortable: true, sort: (a, b) => a - b },
 ];
+
+// Mirror the sort/group prefs from the Filament tab
+const inventorySortBy = computed(() => {
+  const pref = authStore.preferences.spoolSortBy ?? 'createdAt';
+  const order = authStore.preferences.spoolSortOrder ?? 'desc';
+  const keyMap = { brand: 'brand', weight: 'remaining', hue: 'remaining', createdAt: 'brand' };
+  return [{ key: keyMap[pref] ?? 'brand', order }];
+});
+
+const inventoryGroupBy = computed(() => {
+  const pref = authStore.preferences.spoolGroupBy ?? 'material';
+  if (pref === 'material') return [{ key: 'material', order: 'asc' }];
+  if (pref === 'brand')    return [{ key: 'brand',    order: 'asc' }];
+  return [];
+});
 
 onMounted(() => spoolStore.fetchSpools());
 
@@ -129,6 +159,7 @@ const groups = computed(() => {
   }
   return Object.values(map).map((g) => ({
     ...g,
+    remaining: g.totalRemaining_g,
     pct: g.totalInitial_g > 0 ? (g.totalRemaining_g / g.totalInitial_g) * 100 : 0,
   }));
 });

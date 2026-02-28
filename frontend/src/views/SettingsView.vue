@@ -231,6 +231,35 @@
             <v-btn color="primary" :loading="savingOidc" @click="saveOidcConfig">Save</v-btn>
           </v-card-actions>
         </v-card>
+        <!-- About / Version -->
+        <v-card rounded="xl" class="mb-4">
+          <v-card-title class="pa-4 pb-2 d-flex align-center gap-2">
+            <v-icon color="primary">mdi-information-outline</v-icon>
+            About
+          </v-card-title>
+          <v-card-text>
+            <v-list density="compact">
+              <v-list-item>
+                <template #prepend>
+                  <v-icon class="mr-3">mdi-application</v-icon>
+                </template>
+                <v-list-item-title class="text-body-2 text-medium-emphasis">Frontend</v-list-item-title>
+                <template #append>
+                  <span class="text-body-2 font-weight-medium">{{ frontendVersion }}</span>
+                </template>
+              </v-list-item>
+              <v-list-item>
+                <template #prepend>
+                  <v-icon class="mr-3">mdi-server</v-icon>
+                </template>
+                <v-list-item-title class="text-body-2 text-medium-emphasis">Backend</v-list-item-title>
+                <template #append>
+                  <span class="text-body-2 font-weight-medium">{{ backendVersion }}</span>
+                </template>
+              </v-list-item>
+            </v-list>
+          </v-card-text>
+        </v-card>
       </v-col>
     </v-row>
   </div>
@@ -246,6 +275,10 @@ import { useEsp32DeviceStore } from '@/store/esp32Devices';
 const authStore = useAuthStore();
 const uiStore = useUiStore();
 const esp32Store = useEsp32DeviceStore();
+
+// ── Version info ───────────────────────────────────────────────────────────────
+const frontendVersion = import.meta.env.VITE_APP_VERSION || 'dev';
+const backendVersion = ref('…');
 
 const username = ref(authStore.user?.username || '');
 const email = ref(authStore.user?.email || '');
@@ -297,6 +330,12 @@ function copyCallbackUrl() {
 
 onMounted(async () => {
   esp32Store.fetchDevices();
+
+  fetch('/api/version').then(r => r.json()).then(data => {
+    backendVersion.value = data.version || 'dev';
+  }).catch(() => {
+    backendVersion.value = 'unavailable';
+  });
 
   const { data } = await apiClient.get('/integrations/types');
   integrations.value = data;

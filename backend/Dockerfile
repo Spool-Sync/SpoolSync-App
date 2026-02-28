@@ -17,6 +17,8 @@ RUN npx prisma generate
 # Production stage
 FROM base AS runner
 ENV NODE_ENV=production
+ARG APP_VERSION=dev
+ENV APP_VERSION=${APP_VERSION}
 
 RUN apk add --no-cache openssl
 
