@@ -127,7 +127,7 @@ export async function updateSensorData(spoolHolderId, { weight_g, raw_adc, nfcTa
     data: {
       ...(weight_g !== undefined && { currentWeight_g: weight_g }),
       ...(raw_adc !== undefined && { lastRawAdc: raw_adc }),
-      ...(nfcTagId !== undefined && { nfcTagId }),
+      ...(nfcTagId !== undefined && { nfcTagId: nfcTagId?.toLowerCase() ?? null }),
     },
     include: holderInclude,
   });

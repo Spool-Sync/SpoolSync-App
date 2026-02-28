@@ -65,7 +65,7 @@ export async function create(data) {
     data: {
       ...spoolData,
       filamentTypeId,
-      nfcTagId: spoolData.nfcTagId || null,
+      nfcTagId: spoolData.nfcTagId?.toLowerCase() || null,
       currentWeight_g: spoolData.currentWeight_g ?? spoolData.initialWeight_g,
     },
     include: spoolInclude,
@@ -171,7 +171,7 @@ export async function update(spoolId, data) {
     ? (await prisma.spool.findUnique({ where: { spoolId }, select: { currentWeight_g: true } }))?.currentWeight_g
     : undefined;
 
-  if ('nfcTagId' in spoolData) spoolData.nfcTagId = spoolData.nfcTagId || null;
+  if ('nfcTagId' in spoolData) spoolData.nfcTagId = spoolData.nfcTagId?.toLowerCase() || null;
   await prisma.spool.update({ where: { spoolId }, data: spoolData });
 
   // storageLocationId === undefined means "not touched"; null means "clear"
@@ -400,7 +400,7 @@ export async function getUsageTrendByType(days = 30) {
 export async function linkNfcTag(spoolId, nfcTagId) {
   const spool = await prisma.spool.update({
     where: { spoolId },
-    data: { nfcTagId: nfcTagId || null },
+    data: { nfcTagId: nfcTagId?.toLowerCase() || null },
     include: spoolInclude,
   });
   getIO()?.emit('spool:updated', spool);
