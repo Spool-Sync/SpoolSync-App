@@ -145,22 +145,46 @@
 
                   <!-- Actions -->
                   <div class="d-flex flex-column ga-1">
-                    <v-btn
-                      v-if="holder.associatedSpool"
-                      size="x-small"
-                      variant="tonal"
-                      color="error"
-                      icon="mdi-tray-minus"
-                      @click="handleRemoveSpool(holder)"
-                    />
-                    <v-btn
-                      v-else
-                      size="x-small"
-                      variant="tonal"
-                      color="primary"
-                      icon="mdi-tray-plus"
-                      @click="openAssignDialog(holder)"
-                    />
+                    <template v-if="holder.associatedSpool">
+                      <!-- Replace: swap to a different spool without unloading first -->
+                      <v-tooltip location="left" text="Replace spool">
+                        <template #activator="{ props: tip }">
+                          <v-btn
+                            v-bind="tip"
+                            size="x-small"
+                            variant="tonal"
+                            color="primary"
+                            icon="mdi-swap-horizontal"
+                            @click="openAssignDialog(holder)"
+                          />
+                        </template>
+                      </v-tooltip>
+                      <!-- Unload -->
+                      <v-tooltip location="left" text="Unload spool">
+                        <template #activator="{ props: tip }">
+                          <v-btn
+                            v-bind="tip"
+                            size="x-small"
+                            variant="tonal"
+                            color="error"
+                            icon="mdi-tray-minus"
+                            @click="handleRemoveSpool(holder)"
+                          />
+                        </template>
+                      </v-tooltip>
+                    </template>
+                    <v-tooltip v-else location="left" text="Load spool">
+                      <template #activator="{ props: tip }">
+                        <v-btn
+                          v-bind="tip"
+                          size="x-small"
+                          variant="tonal"
+                          color="primary"
+                          icon="mdi-tray-plus"
+                          @click="openAssignDialog(holder)"
+                        />
+                      </template>
+                    </v-tooltip>
                     <v-btn
                       size="x-small"
                       variant="tonal"
@@ -183,7 +207,7 @@
     <!-- Assign spool dialog -->
     <v-dialog v-model="assignDialog" max-width="480">
       <v-card rounded="xl">
-        <v-card-title class="pa-4">Load Spool onto {{ assignTarget?.name }}</v-card-title>
+        <v-card-title class="pa-4">{{ assignTarget?.associatedSpool ? 'Replace Spool in' : 'Load Spool onto' }} {{ assignTarget?.name }}</v-card-title>
         <v-card-text>
           <v-select
             v-model="assignSpoolId"

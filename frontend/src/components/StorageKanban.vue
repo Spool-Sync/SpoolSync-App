@@ -131,16 +131,16 @@
                 :key="holder.spoolHolderId"
                 class="holder-slot mb-2"
                 :class="{
-                  'holder-slot--over': dragOver === holder.spoolHolderId && !!dragSpoolId && printer.status !== 'PRINTING',
+                  'holder-slot--over': dragOver === holder.spoolHolderId && !!dragSpoolId,
                   'holder-slot--occupied': !!holder.associatedSpoolId,
-                  'holder-slot--locked': printer.status === 'PRINTING',
+                  'holder-slot--printing': printer.status === 'PRINTING',
                 }"
-                @dragover.prevent="printer.status !== 'PRINTING' && (dragOver = holder.spoolHolderId)"
+                @dragover.prevent="dragOver = holder.spoolHolderId"
                 @dragleave.self="dragOver = null"
-                @drop.prevent="printer.status !== 'PRINTING' && onDropHolder(holder)"
+                @drop.prevent="onDropHolder(holder, printer)"
               >
                 <div class="d-flex align-center px-2 py-1">
-                  <v-icon v-if="printer.status === 'PRINTING'" size="14" class="mr-1 text-warning">mdi-lock</v-icon>
+                  <v-icon v-if="printer.status === 'PRINTING'" size="14" class="mr-1 text-warning">mdi-alert-circle-outline</v-icon>
                   <v-icon v-else size="14" class="mr-1 text-medium-emphasis">mdi-tray</v-icon>
                   <span class="text-caption font-weight-medium text-medium-emphasis">{{ holder.name }}</span>
                 </div>
@@ -189,6 +189,27 @@
         @cancel="showEditForm = false"
       />
     </v-dialog>
+
+    <!-- Printing override confirmation -->
+    <v-dialog v-model="printingConfirmDialog" max-width="440" persistent>
+      <v-card rounded="xl">
+        <v-card-title class="pa-4 d-flex align-center ga-2">
+          <v-icon color="warning">mdi-alert</v-icon>
+          Printer is Printing
+        </v-card-title>
+        <v-card-text>
+          <strong>{{ pendingDropPrinterName }}</strong> is currently printing and may be actively using filament in this slot.
+          Replacing filament mid-print can cause a failed print or a jam.
+          <br /><br />
+          Are you sure you want to proceed?
+        </v-card-text>
+        <v-card-actions class="pa-4 pt-0">
+          <v-spacer />
+          <v-btn @click="printingConfirmDialog = false">Cancel</v-btn>
+          <v-btn color="warning" :loading="printingConfirmLoading" @click="confirmPrintingDrop">Override</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </div>
 </template>
 
@@ -226,6 +247,12 @@ async function handleSaved() {
 const dragSpoolId = ref(null);
 const dragFrom = ref(null);    // storageLocationId, '__unassigned__', or spoolHolderId
 const dragOver = ref(null);
+
+// Printing override confirmation
+const printingConfirmDialog = ref(false);
+const printingConfirmLoading = ref(false);
+const pendingDropPrinterName = ref('');
+let pendingDropAction = null;
 
 // Optimistic location overrides: { [spoolId]: locationId | null }
 const locationOverrides = ref({});
@@ -330,6 +357,15 @@ function onDragEnd() {
   dragFrom.value = null;
 }
 
+function findPrinterForHolder(holderId) {
+  for (const printer of printerStore.printers) {
+    for (const holder of (printer.spoolHolders ?? [])) {
+      if (holder.spoolHolderId === holderId) return printer;
+    }
+  }
+  return null;
+}
+
 // Drop onto a storage location column
 async function onDropStorage(targetColumnId) {
   const spoolId = dragSpoolId.value;
@@ -341,9 +377,26 @@ async function onDropStorage(targetColumnId) {
   if (!spoolId || fromId === targetColumnId) return;
 
   const newLocationId = targetColumnId === '__unassigned__' ? null : targetColumnId;
+  const isFromHolder = fromId && fromId !== '__unassigned__' && !locationStore.locations.find(l => l.storageLocationId === fromId);
 
-  // If coming from a printer holder, remove from holder first
-  if (fromId && fromId !== '__unassigned__' && !locationStore.locations.find(l => l.storageLocationId === fromId)) {
+  // If dragging off a printing printer's slot, ask for confirmation first
+  if (isFromHolder) {
+    const sourcePrinter = findPrinterForHolder(fromId);
+    if (sourcePrinter?.status === 'PRINTING') {
+      pendingDropPrinterName.value = sourcePrinter.name;
+      pendingDropAction = async (force) => {
+        await apiClient.delete(`/printers/holders/${fromId}/assign-spool`, { params: { force: force ? '1' : undefined } });
+        await printerStore.fetchPrinters();
+        await spoolStore.updateSpool(spoolId, { storageLocationId: newLocationId });
+        await spoolStore.fetchSpools();
+      };
+      printingConfirmDialog.value = true;
+      return;
+    }
+  }
+
+  // Normal (non-printing) path
+  if (isFromHolder) {
     try {
       await apiClient.delete(`/printers/holders/${fromId}/assign-spool`);
       await printerStore.fetchPrinters();
@@ -351,7 +404,6 @@ async function onDropStorage(targetColumnId) {
   }
 
   locationOverrides.value = { ...locationOverrides.value, [spoolId]: newLocationId };
-
   try {
     await spoolStore.updateSpool(spoolId, { storageLocationId: newLocationId });
   } catch {
@@ -364,7 +416,7 @@ async function onDropStorage(targetColumnId) {
 }
 
 // Drop onto a printer spool holder slot
-async function onDropHolder(holder) {
+async function onDropHolder(holder, printer) {
   const spoolId = dragSpoolId.value;
   dragOver.value = null;
   dragSpoolId.value = null;
@@ -373,12 +425,34 @@ async function onDropHolder(holder) {
   if (!spoolId) return;
   if (holder.associatedSpoolId === spoolId) return; // already there
 
+  if (printer.status === 'PRINTING') {
+    pendingDropPrinterName.value = printer.name;
+    pendingDropAction = async (force) => {
+      await apiClient.put(`/printers/holders/${holder.spoolHolderId}/assign-spool`, { spoolId, force });
+      await printerStore.fetchPrinters();
+      await spoolStore.fetchSpools();
+    };
+    printingConfirmDialog.value = true;
+    return;
+  }
+
   try {
     await apiClient.put(`/printers/holders/${holder.spoolHolderId}/assign-spool`, { spoolId });
     await printerStore.fetchPrinters();
-    // Refresh spools so spoolHolder.attachedPrinter is updated
     await spoolStore.fetchSpools();
   } catch { /* ignore */ }
+}
+
+async function confirmPrintingDrop() {
+  if (!pendingDropAction) return;
+  printingConfirmLoading.value = true;
+  try {
+    await pendingDropAction(true);
+  } finally {
+    printingConfirmLoading.value = false;
+    printingConfirmDialog.value = false;
+    pendingDropAction = null;
+  }
 }
 </script>
 
@@ -510,9 +584,8 @@ async function onDropHolder(holder) {
   border-color: rgba(var(--v-border-color), 0.2);
 }
 
-.holder-slot--locked {
-  opacity: 0.65;
-  cursor: not-allowed;
+.holder-slot--printing {
+  border-color: rgba(var(--v-theme-warning), 0.4);
 }
 
 /* ── Kanban card list animations (storage columns) ───────────────────────── */

@@ -229,7 +229,7 @@ export async function configureHolder(spoolHolderId, { esp32DeviceId, channel, h
 export async function assignSpoolToHolder(spoolHolderId, spoolId, force = false) {
   const holder = await prisma.spoolHolder.findUniqueOrThrow({
     where: { spoolHolderId },
-    select: { attachedPrinterId: true, assignmentType: true },
+    select: { attachedPrinterId: true, assignmentType: true, associatedSpoolId: true },
   });
 
   // Block assignment while printer is printing (unless force=true)
@@ -245,7 +245,15 @@ export async function assignSpoolToHolder(spoolHolderId, spoolId, force = false)
     }
   }
 
-  // Clear previous occupant if any
+  // If a different spool is already in this slot, clear its printStartWeight snapshot
+  if (holder.associatedSpoolId && holder.associatedSpoolId !== spoolId) {
+    await prisma.spool.update({
+      where: { spoolId: holder.associatedSpoolId },
+      data: { printStartWeight_g: null },
+    });
+  }
+
+  // Clear this slot from wherever the new spool currently lives
   const prev = await prisma.spoolHolder.findFirst({
     where: { associatedSpoolId: spoolId },
     select: { spoolHolderId: true },
