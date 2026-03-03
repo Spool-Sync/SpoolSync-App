@@ -33,6 +33,17 @@ export async function listTypes() {
   }
 }
 
+export async function getFeatures(typeId) {
+  try {
+    const filePath = path.join(INTEGRATIONS_DIR, `${typeId}.json`);
+    const content = await readFile(filePath, "utf-8");
+    const config = JSON.parse(content);
+    return Array.isArray(config.features) ? config.features : [];
+  } catch {
+    return [];
+  }
+}
+
 export async function getIntegration(typeId) {
   try {
     const filePath = path.join(INTEGRATIONS_DIR, `${typeId}.json`);

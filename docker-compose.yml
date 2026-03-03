@@ -29,6 +29,7 @@ services:
       NODE_ENV: production
       JWT_SECRET: ${JWT_SECRET:-change_this_in_production}
       JWT_EXPIRES_IN: 7d
+      SYSLOG_HOST: ${SYSLOG_HOST:-}
     volumes:
       - integrations_data:/app/integrations/printers
     ports:

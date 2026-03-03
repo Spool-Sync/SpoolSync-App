@@ -22,5 +22,14 @@ router.delete('/:printerId/associate-spoolholder', requirePermission('printers:e
 router.put('/holders/:spoolHolderId/configure', requirePermission('spool_holders:edit'), printerController.configureHolder);
 router.put('/holders/:spoolHolderId/assign-spool', requirePermission('spool_holders:edit'), printerController.assignSpool);
 router.delete('/holders/:spoolHolderId/assign-spool', requirePermission('spool_holders:edit'), printerController.removeSpool);
+router.put('/holders/:spoolHolderId/stage-spool', requirePermission('spool_holders:edit'), printerController.stageSpool);
+router.delete('/holders/:spoolHolderId/stage-spool', requirePermission('spool_holders:edit'), printerController.clearStagedSpool);
+
+// Reload flow
+router.post('/:printerId/begin-reload', requirePermission('printers:edit'), printerController.beginReload);
+
+// LED light show (easter egg)
+router.put('/:printerId/leds', requirePermission('printers:edit'), printerController.setLeds);
+router.delete('/:printerId/leds', requirePermission('printers:edit'), printerController.stopLeds);
 
 export default router;

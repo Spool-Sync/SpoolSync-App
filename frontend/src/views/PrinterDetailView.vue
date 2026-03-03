@@ -79,54 +79,142 @@
             <v-card-title class="pa-4 pb-2 d-flex align-center">
               <span class="text-subtitle-1 font-weight-bold">Spool Holder Slots</span>
               <v-spacer />
-              <div class="d-flex align-center ga-2">
-                <v-text-field
-                  v-model.number="holderCount"
-                  type="number"
-                  density="compact"
-                  variant="outlined"
-                  hide-details
-                  style="width: 80px"
-                  min="0"
-                  max="16"
-                />
-                <v-btn
-                  size="small"
-                  color="primary"
-                  variant="tonal"
-                  :loading="settingCount"
-                  @click="applyHolderCount"
-                >
-                  Set
-                </v-btn>
-              </div>
+              <!-- Begin Reload button: shown when any slots have a staged spool -->
+              <v-btn
+                v-if="hasStagedSlots"
+                size="small"
+                color="success"
+                variant="tonal"
+                prepend-icon="mdi-reload"
+                :loading="reloading"
+                class="mr-2"
+                @click="handleBeginReload"
+              >
+                Begin Reload
+              </v-btn>
+              <!-- Slot count editor: locked for buddy printers -->
+              <template v-if="!printer.features?.includes('filament_reload')">
+                <div class="d-flex align-center ga-2">
+                  <v-text-field
+                    v-model.number="holderCount"
+                    type="number"
+                    density="compact"
+                    variant="outlined"
+                    hide-details
+                    style="width: 80px"
+                    min="0"
+                    max="16"
+                  />
+                  <v-btn
+                    size="small"
+                    color="primary"
+                    variant="tonal"
+                    :loading="settingCount"
+                    @click="applyHolderCount"
+                  >
+                    Set
+                  </v-btn>
+                </div>
+              </template>
+              <template v-else>
+                <span class="text-caption text-medium-emphasis">
+                  {{ printer.spoolHolders.length }} slot{{ printer.spoolHolders.length === 1 ? '' : 's' }} (auto-detected from firmware)
+                </span>
+              </template>
             </v-card-title>
             <v-divider />
+
+            <!-- Reload progress banner -->
+            <v-alert
+              v-if="printer.reloadJobState?.status === 'reloading'"
+              type="info"
+              border="start"
+              prominent
+              class="ma-3 mb-0"
+            >
+              <div class="d-flex align-center ga-3 mb-1">
+                <!-- Filament color swatch -->
+                <div
+                  v-if="printer.reloadJobState.currentColor"
+                  class="rounded-circle flex-shrink-0"
+                  :style="{
+                    width: '28px', height: '28px',
+                    background: printer.reloadJobState.currentColor,
+                    border: '2px solid rgba(255,255,255,0.4)',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+                  }"
+                />
+                <div class="flex-grow-1">
+                  <div class="text-body-2 font-weight-bold">
+                    {{ printer.reloadJobState.isReplace ? 'Replacing' : 'Loading' }}
+                    Tool {{ (printer.reloadJobState.currentTool ?? 0) + 1 }}
+                    <v-chip size="x-small" variant="tonal" class="ml-1">
+                      {{ printer.reloadJobState.done }}/{{ printer.reloadJobState.total }}
+                    </v-chip>
+                  </div>
+                  <div class="text-body-2 text-medium-emphasis">
+                    {{ [printer.reloadJobState.currentBrand, printer.reloadJobState.currentSpoolName].filter(Boolean).join(' ') || '…' }}
+                    · {{ printer.reloadJobState.currentMaterial ?? '…' }}
+                    <template v-if="printer.reloadJobState.currentNozzleTempMin">
+                      · {{ printer.reloadJobState.currentNozzleTempMin }}–{{ printer.reloadJobState.currentNozzleTempMax }}°C
+                    </template>
+                  </div>
+                </div>
+              </div>
+              <v-progress-linear indeterminate rounded class="mt-2" />
+            </v-alert>
+
             <v-card-text v-if="printer.spoolHolders.length === 0" class="text-center text-medium-emphasis py-8">
               Set the number of spool holders above to get started
             </v-card-text>
             <div v-else class="pa-3">
               <v-card
-                v-for="holder in [...(printer.spoolHolders ?? [])].sort((a, b) => a.createdAt < b.createdAt ? -1 : 1)"
+                v-for="holder in sortedHolders"
                 :key="holder.spoolHolderId"
-                variant="outlined"
+                :variant="holder.spoolHolderId === activeHolderId ? 'tonal' : 'outlined'"
+                :color="holder.spoolHolderId === activeHolderId ? 'success' : undefined"
                 rounded="lg"
                 class="mb-3"
               >
                 <div class="d-flex align-center pa-3 ga-3">
-                  <!-- Color swatch for loaded spool -->
-                  <div
-                    class="rounded-circle flex-shrink-0"
-                    :style="{
-                      width: '36px', height: '36px',
-                      background: holder.associatedSpool?.filamentType?.colorHex || 'rgba(var(--v-border-color), 0.15)',
-                      border: '2px solid rgba(var(--v-border-color), 0.2)',
-                    }"
-                  />
+                  <!-- Spool color stack: staged on top of current -->
+                  <div class="flex-shrink-0 position-relative" style="width: 36px; height: 36px;">
+                    <!-- Current spool (behind) -->
+                    <div
+                      class="rounded-circle"
+                      :style="{
+                        width: '36px', height: '36px',
+                        background: holder.associatedSpool?.filamentType?.colorHex || 'rgba(var(--v-border-color), 0.15)',
+                        border: '2px solid rgba(var(--v-border-color), 0.2)',
+                        position: 'absolute', top: 0, left: 0,
+                      }"
+                    />
+                    <!-- Staged spool overlay (front, dashed ring) -->
+                    <div
+                      v-if="holder.stagedSpool"
+                      class="rounded-circle"
+                      :style="{
+                        width: '30px', height: '30px',
+                        background: holder.stagedSpool.filamentType?.colorHex || '#aaa',
+                        border: '2px dashed rgba(var(--v-theme-success), 0.9)',
+                        position: 'absolute', top: '3px', left: '3px',
+                      }"
+                    />
+                  </div>
 
                   <!-- Holder info -->
                   <div class="flex-grow-1" style="min-width: 0">
-                    <div class="text-body-2 font-weight-medium">{{ holder.name }}</div>
+                    <div class="d-flex align-center ga-1">
+                      <span class="text-body-2 font-weight-medium">{{ holder.name }}</span>
+                      <v-chip
+                        v-if="holder.spoolHolderId === activeHolderId"
+                        size="x-small"
+                        color="success"
+                        variant="flat"
+                        prepend-icon="mdi-circle-medium"
+                      >Active</v-chip>
+                    </div>
+                    <!-- Current spool line -->
                     <div v-if="holder.associatedSpool" class="text-caption text-medium-emphasis">
                       {{ holder.associatedSpool.filamentType?.brand }}
                       {{ holder.associatedSpool.filamentType?.name }}
@@ -135,6 +223,20 @@
                       </span>
                     </div>
                     <div v-else class="text-caption text-medium-emphasis">Empty</div>
+                    <!-- Staged spool line -->
+                    <div v-if="holder.stagedSpool" class="d-flex align-center ga-1 mt-1">
+                      <v-chip size="x-small" color="success" variant="tonal" prepend-icon="mdi-clock-outline">
+                        Pending: {{ holder.stagedSpool.filamentType?.brand }} {{ holder.stagedSpool.filamentType?.name }}
+                      </v-chip>
+                      <v-btn
+                        size="x-small"
+                        variant="plain"
+                        color="error"
+                        icon="mdi-close"
+                        density="compact"
+                        @click="handleClearStaged(holder)"
+                      />
+                    </div>
 
                     <!-- ESP32 link -->
                     <div v-if="holder.esp32Device" class="text-caption text-blue-darken-2 mt-1">
@@ -146,8 +248,21 @@
                   <!-- Actions -->
                   <div class="d-flex flex-column ga-1">
                     <template v-if="holder.associatedSpool">
-                      <!-- Replace: swap to a different spool without unloading first -->
-                      <v-tooltip location="left" text="Replace spool">
+                      <!-- For buddy printers with occupied slot: stage instead of replace -->
+                      <v-tooltip v-if="printer.features?.includes('filament_reload')" location="left" text="Stage next spool">
+                        <template #activator="{ props: tip }">
+                          <v-btn
+                            v-bind="tip"
+                            size="x-small"
+                            variant="tonal"
+                            color="success"
+                            icon="mdi-swap-horizontal"
+                            @click="openStageDialog(holder)"
+                          />
+                        </template>
+                      </v-tooltip>
+                      <!-- Non-buddy: immediate replace -->
+                      <v-tooltip v-else location="left" text="Replace spool">
                         <template #activator="{ props: tip }">
                           <v-btn
                             v-bind="tip"
@@ -173,7 +288,8 @@
                         </template>
                       </v-tooltip>
                     </template>
-                    <v-tooltip v-else location="left" text="Load spool">
+                    <!-- Empty slot: buddy → stage, non-buddy → direct assign -->
+                    <v-tooltip v-else location="left" :text="printer.features?.includes('filament_reload') ? 'Stage spool' : 'Load spool'">
                       <template #activator="{ props: tip }">
                         <v-btn
                           v-bind="tip"
@@ -181,7 +297,7 @@
                           variant="tonal"
                           color="primary"
                           icon="mdi-tray-plus"
-                          @click="openAssignDialog(holder)"
+                          @click="printer.features?.includes('filament_reload') ? openStageDialog(holder) : openAssignDialog(holder)"
                         />
                       </template>
                     </v-tooltip>
@@ -203,6 +319,37 @@
     <v-overlay v-else :model-value="loading" class="align-center justify-center">
       <v-progress-circular indeterminate size="64" />
     </v-overlay>
+
+    <!-- Stage spool dialog (buddy printers) -->
+    <v-dialog v-model="stageDialog" max-width="480">
+      <v-card rounded="xl">
+        <v-card-title class="pa-4">Stage Spool for {{ stageTarget?.name }}</v-card-title>
+        <v-card-text>
+          <p class="text-caption text-medium-emphasis mb-3">
+            <template v-if="stageTarget?.associatedSpoolId">
+              The current spool stays tracked. The staged spool will be committed when you click "Begin Reload".
+            </template>
+            <template v-else>
+              The spool will be staged and committed when you click "Begin Reload".
+            </template>
+          </p>
+          <v-select
+            v-model="stageSpoolId"
+            :items="availableSpools"
+            item-title="label"
+            item-value="spoolId"
+            label="Select next spool"
+            variant="outlined"
+            density="compact"
+          />
+        </v-card-text>
+        <v-card-actions class="pa-4 pt-0">
+          <v-spacer />
+          <v-btn @click="stageDialog = false">Cancel</v-btn>
+          <v-btn color="success" :disabled="!stageSpoolId" :loading="staging" @click="confirmStage">Stage</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
 
     <!-- Assign spool dialog -->
     <v-dialog v-model="assignDialog" max-width="480">
@@ -310,7 +457,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, watch, watchEffect } from 'vue';
 import { useRoute } from 'vue-router';
 import PrinterStatusCard from '@/components/cards/PrinterStatusCard.vue';
 import { usePrinterStore } from '@/store/printers';
@@ -333,6 +480,29 @@ const assignTarget = ref(null);
 const assignSpoolId = ref(null);
 const assigning = ref(false);
 
+// Staging
+const stageDialog = ref(false);
+const stageTarget = ref(null);
+const stageSpoolId = ref(null);
+const staging = ref(false);
+const reloading = ref(false);
+
+const hasStagedSlots = computed(() =>
+  printer.value?.spoolHolders.some(h => h.stagedSpoolId) ?? false
+);
+
+// Holders sorted by creation date — index matches tool/slot number sent to firmware.
+const sortedHolders = computed(() =>
+  [...(printer.value?.spoolHolders ?? [])].sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1))
+);
+
+// spoolHolderId of the slot that is currently active (printing/loaded) on the firmware.
+// activeTool is a 0-based index into sortedHolders (same indexing as the firmware tool number).
+const activeHolderId = computed(() => {
+  if (printer.value?.activeTool == null) return null;
+  return sortedHolders.value[printer.value.activeTool]?.spoolHolderId ?? null;
+});
+
 // Printing-override confirmation
 const printingConfirmDialog = ref(false);
 const printingConfirmLoading = ref(false);
@@ -345,6 +515,13 @@ const configForm = ref({});
 
 const esp32Devices = ref([]);
 
+// Keep local printer ref in sync with store so WebSocket printer:updated events
+// (activeTool, reloadJobState, etc.) are reflected in the UI without polling.
+watchEffect(() => {
+  const live = printerStore.printers.find(p => p.printerId === route.params.printerId);
+  if (live) printer.value = live;
+});
+
 onMounted(async () => {
   const [printerData, jobs, spoolsData, devicesData] = await Promise.all([
     printerStore.fetchPrinter(route.params.printerId),
@@ -353,6 +530,9 @@ onMounted(async () => {
     apiClient.get('/esp32-devices'),
   ]);
   printer.value = printerData;
+  // Seed the store so watchEffect can react to WebSocket printer:updated events
+  // even when the user navigated directly to this view without loading the printers list.
+  printerStore.handlePrinterCreated(printerData);
   printJobs.value = jobs;
   holderCount.value = printerData.spoolHolders.length;
   esp32Devices.value = devicesData.data;
@@ -453,6 +633,30 @@ async function confirmPrintingOverride() {
     printingConfirmDialog.value = false;
     pendingOverrideAction = null;
   }
+}
+
+function openStageDialog(holder) {
+  stageTarget.value = holder;
+  stageSpoolId.value = null;
+  stageDialog.value = true;
+}
+
+async function confirmStage() {
+  if (!stageSpoolId.value) return;
+  staging.value = true;
+  printer.value = await printerStore.stageSpool(stageTarget.value.spoolHolderId, stageSpoolId.value);
+  stageDialog.value = false;
+  staging.value = false;
+}
+
+async function handleClearStaged(holder) {
+  printer.value = await printerStore.clearStagedSpool(holder.spoolHolderId);
+}
+
+async function handleBeginReload() {
+  reloading.value = true;
+  printer.value = await printerStore.beginReload(printer.value.printerId);
+  reloading.value = false;
 }
 
 function openConfigDialog(holder) {

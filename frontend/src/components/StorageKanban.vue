@@ -125,6 +125,21 @@
           <v-divider />
 
           <div class="pa-2">
+            <!-- Begin Reload button: shown when any slots have a staged spool -->
+            <v-btn
+              v-if="printer.features?.includes('filament_reload') && printer.spoolHolders?.some(h => h.stagedSpoolId)"
+              block
+              size="small"
+              color="success"
+              variant="tonal"
+              prepend-icon="mdi-reload"
+              class="mb-2"
+              :loading="reloadingPrinters.has(printer.printerId)"
+              @click="handleBeginReload(printer.printerId)"
+            >
+              Begin Reload
+            </v-btn>
+
             <template v-if="printer.spoolHolders?.length">
               <div
                 v-for="holder in [...(printer.spoolHolders ?? [])].sort((a, b) => a.createdAt < b.createdAt ? -1 : 1)"
@@ -166,6 +181,13 @@
                     </div>
                   </div>
                 </Transition>
+
+                <!-- Staged spool pending indicator -->
+                <div v-if="holder.stagedSpool" class="px-2 pb-1">
+                  <v-chip size="x-small" color="success" variant="tonal" prepend-icon="mdi-clock-outline" class="text-truncate" style="max-width: 100%">
+                    Pending: {{ holder.stagedSpool.filamentType?.material }}
+                  </v-chip>
+                </div>
 
                 <div v-if="!holder.associatedSpool" class="text-center text-caption text-medium-emphasis py-3">
                   Drop spool here
@@ -247,6 +269,20 @@ async function handleSaved() {
 const dragSpoolId = ref(null);
 const dragFrom = ref(null);    // storageLocationId, '__unassigned__', or spoolHolderId
 const dragOver = ref(null);
+
+// Reload state: Set of printerIds currently reloading
+const reloadingPrinters = ref(new Set());
+
+async function handleBeginReload(printerId) {
+  reloadingPrinters.value = new Set([...reloadingPrinters.value, printerId]);
+  try {
+    await printerStore.beginReload(printerId);
+  } catch { /* ignore */ } finally {
+    const s = new Set(reloadingPrinters.value);
+    s.delete(printerId);
+    reloadingPrinters.value = s;
+  }
+}
 
 // Printing override confirmation
 const printingConfirmDialog = ref(false);
@@ -424,6 +460,14 @@ async function onDropHolder(holder, printer) {
 
   if (!spoolId) return;
   if (holder.associatedSpoolId === spoolId) return; // already there
+
+  // Printers with filament_reload feature always use staging; others assign directly
+  if (printer.features?.includes('filament_reload')) {
+    try {
+      await printerStore.stageSpool(holder.spoolHolderId, spoolId);
+    } catch { /* ignore */ }
+    return;
+  }
 
   if (printer.status === 'PRINTING') {
     pendingDropPrinterName.value = printer.name;

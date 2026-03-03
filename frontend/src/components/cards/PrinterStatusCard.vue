@@ -12,7 +12,7 @@
       <div class="d-flex flex-wrap ga-2 mb-4">
         <PrinterStatusChip :status="printer.status" :printer-type="printer.type" />
         <v-chip
-          v-if="printer.type === 'prusalink_buddy'"
+          v-if="printer.features?.includes('spoolsync_settings')"
           color="teal"
           variant="tonal"
           prepend-icon="mdi-link-variant"

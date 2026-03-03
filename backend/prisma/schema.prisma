@@ -149,11 +149,12 @@ model Spool {
   createdAt           DateTime    @default(now())
   updatedAt           DateTime    @updatedAt
 
-  filamentType    FilamentType      @relation(fields: [filamentTypeId], references: [filamentTypeId])
-  spoolHolder     SpoolHolder?
+  filamentType     FilamentType           @relation(fields: [filamentTypeId], references: [filamentTypeId])
+  spoolHolder      SpoolHolder?
+  stagedInHolders  SpoolHolder[]          @relation("StagedSpool")
   storageLocations StorageLocationSpool[]
-  weightHistory   WeightHistory[]
-  printJobs       PrintJob[]
+  weightHistory    WeightHistory[]
+  printJobs        PrintJob[]
 
   @@map("spools")
 }
@@ -179,6 +180,8 @@ model Printer {
   status            PrinterStatus @default(UNKNOWN)
   currentJobDetails Json?
   printingStartedAt DateTime?
+  reloadJobState    Json?
+  activeTool        Int?
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
 
@@ -216,6 +219,7 @@ model SpoolHolder {
   nfcTagId            String?               @unique
   currentWeight_g     Float?
   associatedSpoolId   String?               @unique
+  stagedSpoolId       String?
   hasLoadCell         Boolean               @default(false)
   loadCellOffset      Float?
   loadCellScale       Float?
@@ -229,6 +233,7 @@ model SpoolHolder {
   storageLocation StorageLocation? @relation(fields: [storageLocationId], references: [storageLocationId])
   esp32Device     Esp32Device?     @relation(fields: [esp32DeviceId], references: [deviceId])
   associatedSpool Spool?           @relation(fields: [associatedSpoolId], references: [spoolId])
+  stagedSpool     Spool?           @relation("StagedSpool", fields: [stagedSpoolId], references: [spoolId])
 
   @@map("spool_holders")
 }

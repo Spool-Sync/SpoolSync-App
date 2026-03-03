@@ -18,7 +18,7 @@
       <div class="d-flex align-center ga-1">
         <span>{{ item.type }}</span>
         <v-chip
-          v-if="item.type === 'prusalink_buddy'"
+          v-if="item.features?.includes('spoolsync_settings')"
           color="teal"
           variant="tonal"
           size="x-small"

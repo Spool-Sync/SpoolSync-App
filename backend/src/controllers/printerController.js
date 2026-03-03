@@ -1,4 +1,5 @@
 import * as printerService from '../services/printerService.js';
+import * as printerLedService from '../services/printerLedService.js';
 
 export async function create(req, res, next) {
   try {
@@ -112,6 +113,33 @@ export async function reloadFilaments(req, res, next) {
   }
 }
 
+export async function stageSpool(req, res, next) {
+  try {
+    const printer = await printerService.stageSpoolToHolder(req.params.spoolHolderId, req.body.spoolId);
+    res.json(printer);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function clearStagedSpool(req, res, next) {
+  try {
+    const printer = await printerService.clearStagedSpool(req.params.spoolHolderId);
+    res.json(printer);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function beginReload(req, res, next) {
+  try {
+    const printer = await printerService.beginReload(req.params.printerId);
+    res.json(printer);
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function associateSpoolHolder(req, res, next) {
   try {
     const printer = await printerService.associateSpoolHolder(req.params.printerId, req.body.spoolHolderId);
@@ -125,6 +153,25 @@ export async function dissociateSpoolHolder(req, res, next) {
   try {
     const printer = await printerService.dissociateSpoolHolder(req.params.printerId, req.body.spoolHolderId);
     res.json(printer);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function setLeds(req, res, next) {
+  try {
+    const { effect = 'solid', color = { r: 255, g: 255, b: 255 }, zone = 'all' } = req.body;
+    await printerLedService.startEffect(req.params.printerId, effect, color, zone);
+    res.json(printerLedService.getActiveEffect(req.params.printerId));
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function stopLeds(req, res, next) {
+  try {
+    await printerLedService.startEffect(req.params.printerId, 'restore');
+    res.json({ effect: null });
   } catch (err) {
     next(err);
   }

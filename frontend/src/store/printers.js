@@ -84,6 +84,34 @@ export const usePrinterStore = defineStore('printers', () => {
     return data;
   }
 
+  async function stageSpool(spoolHolderId, spoolId) {
+    const { data } = await apiClient.put(`/printers/holders/${spoolHolderId}/stage-spool`, { spoolId });
+    handlePrinterUpdated(data);
+    return data;
+  }
+
+  async function clearStagedSpool(spoolHolderId) {
+    const { data } = await apiClient.delete(`/printers/holders/${spoolHolderId}/stage-spool`);
+    handlePrinterUpdated(data);
+    return data;
+  }
+
+  async function beginReload(printerId) {
+    const { data } = await apiClient.post(`/printers/${printerId}/begin-reload`);
+    handlePrinterUpdated(data);
+    return data;
+  }
+
+  async function setLeds(printerId, effect, color, zone = 'all') {
+    const { data } = await apiClient.put(`/printers/${printerId}/leds`, { effect, color, zone });
+    return data;
+  }
+
+  async function stopLeds(printerId) {
+    const { data } = await apiClient.delete(`/printers/${printerId}/leds`);
+    return data;
+  }
+
   async function fetchIntegrationTypes() {
     const { data } = await apiClient.get('/integrations/types');
     integrationTypes.value = data;
@@ -123,5 +151,5 @@ export const usePrinterStore = defineStore('printers', () => {
     printers.value = printers.value.filter((p) => p.printerId !== printerId);
   }
 
-  return { printers, loading, error, integrationTypes, fetchPrinters, fetchPrinter, createPrinter, updatePrinter, deletePrinter, syncStatus, setSpoolHolderCount, configureHolder, assignSpool, removeSpool, fetchPrintJobs, reloadFilaments, fetchIntegrationTypes, getIntegrationType, handleStatusUpdate, handleJobUpdate, handlePrinterCreated, handlePrinterUpdated, handlePrinterDeleted };
+  return { printers, loading, error, integrationTypes, fetchPrinters, fetchPrinter, createPrinter, updatePrinter, deletePrinter, syncStatus, setSpoolHolderCount, configureHolder, assignSpool, removeSpool, fetchPrintJobs, reloadFilaments, stageSpool, clearStagedSpool, beginReload, setLeds, stopLeds, fetchIntegrationTypes, getIntegrationType, handleStatusUpdate, handleJobUpdate, handlePrinterCreated, handlePrinterUpdated, handlePrinterDeleted };
 });

@@ -72,7 +72,7 @@
       "type": "password",
       "placeholder": "your-prusalink-api-key",
       "required": true,
-      "hint": "Found in the printer LCD menu under Settings → Network → PrusaLink, or in the PrusaLink web interface"
+      "hint": "Found in the printer LCD menu under Settings \u2192 Network \u2192 PrusaLink, or in the PrusaLink web interface"
     }
   ],
   "status_display_labels": {
@@ -90,5 +90,6 @@
     "name": "SpoolSync",
     "github_username": "spoolsync",
     "contributed_date": "2026-02-20"
-  }
+  },
+  "features": []
 }
