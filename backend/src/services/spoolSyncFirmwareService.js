@@ -187,6 +187,38 @@ export async function triggerFilamentLoad(connectionDetails, toolIndex) {
 }
 
 /**
+ * Trigger a physical filament unload for a specific tool on the firmware.
+ * Sends POST /api/v1/filament/unload { tool, temp? } and returns true on 2xx, false on failure.
+ * Non-fatal — caller should not throw on false.
+ * If filamentType has temperature data it is included so the firmware can pre-heat
+ * the nozzle before retracting. Without it the firmware falls back to its stored
+ * preheat profile (M702 W0). M702 checks the filament sensor internally so it is
+ * safe to send even when SpoolSync does not know whether filament is physically loaded.
+ */
+export async function triggerFilamentUnload(connectionDetails, toolIndex, filamentType) {
+  try {
+    const url = `${connectionDetails.base_url}/api/v1/filament/unload`;
+    const body = { tool: toolIndex };
+    const nozzleTemp = filamentType?.nozzleTempMax ?? filamentType?.nozzleTempMin;
+    if (nozzleTemp) {
+      body.temp = nozzleTemp;
+    }
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: buildHeaders(connectionDetails),
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    logger.info(`[spoolSyncFirmware] filament unload triggered tool=${toolIndex} on ${connectionDetails.base_url}`);
+    return true;
+  } catch (err) {
+    logger.warn(`[spoolSyncFirmware] triggerFilamentUnload failed: ${err.message}`);
+    return false;
+  }
+}
+
+/**
  * Set LED color/mode on a buddy printer's side strip and/or Dwarf tool-head LEDs.
  * @param {object} connectionDetails
  * @param {number} r,g,b  - 0-255

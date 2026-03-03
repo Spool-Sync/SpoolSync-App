@@ -10,6 +10,7 @@ import {
   setSpoolSyncEnabled,
   pushFilamentToFirmware,
   triggerFilamentLoad,
+  triggerFilamentUnload,
   triggerFilamentChange,
   configureSyslog,
 } from './spoolSyncFirmwareService.js';
@@ -396,8 +397,18 @@ export async function assignSpoolToHolder(spoolHolderId, spoolId, force = false)
     const toolIndex = updated.spoolHolders
       .filter(h => h.assignmentType === 'PRINTER')
       .findIndex(h => h.spoolHolderId === spoolHolderId);
-    if (toolIndex >= 0 && spool?.associatedSpool?.filamentType) {
-      await pushFilamentToFirmware(updated.connectionDetails, toolIndex, spool.associatedSpool.filamentType);
+    if (toolIndex >= 0) {
+      // If SpoolSync had no spool assigned to this slot, the printer's physical
+      // filament sensor might still detect filament that was loaded outside of
+      // SpoolSync. Pre-unload so the slot is clear before the new filament type
+      // is pushed and a physical load is triggered by the user.
+      // M702 checks the sensor internally and exits cleanly if nothing is loaded.
+      if (!holder.associatedSpoolId) {
+        await triggerFilamentUnload(updated.connectionDetails, toolIndex, null);
+      }
+      if (spool?.associatedSpool?.filamentType) {
+        await pushFilamentToFirmware(updated.connectionDetails, toolIndex, spool.associatedSpool.filamentType);
+      }
     }
   }
 
@@ -408,7 +419,11 @@ export async function assignSpoolToHolder(spoolHolderId, spoolId, force = false)
 export async function removeSpoolFromHolder(spoolHolderId, force = false) {
   const holder = await prisma.spoolHolder.findUniqueOrThrow({
     where: { spoolHolderId },
-    select: { associatedSpoolId: true, attachedPrinterId: true },
+    select: {
+      associatedSpoolId: true,
+      attachedPrinterId: true,
+      associatedSpool: { select: { filamentType: true } },
+    },
   });
 
   // Block removal while printer is printing (unless force=true)
@@ -439,12 +454,19 @@ export async function removeSpoolFromHolder(spoolHolderId, force = false) {
   const printer = await getById(holder.attachedPrinterId);
   getIO()?.emit('printer:updated', printer);
 
-  // Clear filament on firmware if the integration supports it (non-fatal).
+  // Trigger physical unload + clear filament metadata on firmware (non-fatal).
   if (printer.features?.includes('filament_push')) {
     const toolIndex = printer.spoolHolders
       .filter(h => h.assignmentType === 'PRINTER')
       .findIndex(h => h.spoolHolderId === spoolHolderId);
     if (toolIndex >= 0) {
+      // Unload the physical filament. Pass the removed spool's filament type so the
+      // firmware can pre-heat to the correct nozzle temperature before retracting.
+      // triggerFilamentUnload is safe even if the slot is physically empty — the
+      // firmware's M702 checks its own filament sensor and exits cleanly if nothing
+      // is detected.
+      await triggerFilamentUnload(printer.connectionDetails, toolIndex, holder.associatedSpool?.filamentType ?? null);
+      // Clear the filament-type metadata slot on the printer.
       await pushFilamentToFirmware(printer.connectionDetails, toolIndex, null);
     }
   }
