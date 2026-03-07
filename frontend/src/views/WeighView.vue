@@ -64,18 +64,69 @@
         <v-autocomplete
           v-if="!spool"
           v-model="selectedSpoolId"
-          :items="spoolItems"
-          item-title="label"
+          :items="spoolStore.spools"
+          :item-title="spoolSearchText"
           item-value="spoolId"
-          label="Or search spool by name"
+          :custom-filter="spoolFilter"
+          label="Search spools…"
           prepend-inner-icon="mdi-magnify"
           variant="outlined"
           density="compact"
           clearable
           hide-details
+          no-data-text="No spools found"
           class="mb-1"
           @update:modelValue="onSpoolSelect"
-        />
+        >
+          <template #item="{ item, props: itemProps }">
+            <v-list-item v-bind="itemProps" lines="two" class="py-2">
+              <template #prepend>
+                <div
+                  class="rounded-circle mr-2"
+                  :style="{
+                    width: '30px',
+                    height: '30px',
+                    background: item.raw.filamentType?.colorHex || '#9e9e9e',
+                    flexShrink: 0,
+                    border: '2px solid rgba(255,255,255,0.12)',
+                  }"
+                />
+              </template>
+              <template #title>
+                <span class="text-body-2 font-weight-medium">
+                  {{ item.raw.filamentType?.brand }} · {{ item.raw.filamentType?.name }}
+                </span>
+              </template>
+              <template #subtitle>
+                <div class="d-flex align-center ga-1 mb-1">
+                  <v-chip size="x-small" variant="tonal" density="compact">{{ item.raw.filamentType?.material }}</v-chip>
+                  <span v-if="item.raw.filamentType?.color" class="text-caption">{{ item.raw.filamentType.color }}</span>
+                  <v-spacer />
+                  <span class="text-caption font-weight-medium" :class="`text-${pctColor(spoolPct(item.raw))}`">
+                    {{ Math.round(Math.max(0, item.raw.currentWeight_g - (item.raw.coreWeight_g ?? item.raw.filamentType?.spoolWeight_g ?? 200))) }}g left
+                  </span>
+                </div>
+                <v-progress-linear
+                  :model-value="spoolPct(item.raw)"
+                  :color="pctColor(spoolPct(item.raw))"
+                  rounded
+                  height="3"
+                  bg-color="rgba(0,0,0,0.08)"
+                />
+              </template>
+            </v-list-item>
+          </template>
+          <template #selection="{ item }">
+            <div class="d-flex align-center ga-2">
+              <div
+                class="rounded-circle"
+                :style="{ width: '14px', height: '14px', background: item.raw.filamentType?.colorHex || '#9e9e9e', flexShrink: 0 }"
+              />
+              <span class="text-body-2">{{ item.raw.filamentType?.brand }} {{ item.raw.filamentType?.name }}</span>
+              <span v-if="item.raw.filamentType?.color" class="text-caption text-medium-emphasis">{{ item.raw.filamentType.color }}</span>
+            </div>
+          </template>
+        </v-autocomplete>
 
         <!-- Spool info row -->
         <div v-if="spool" class="d-flex align-center ga-3 mt-1">
@@ -129,16 +180,56 @@
           <div class="d-flex align-center ga-2">
             <v-autocomplete
               v-model="linkTargetSpoolId"
-              :items="spoolItems"
-              item-title="label"
+              :items="spoolStore.spools"
+              :item-title="spoolSearchText"
               item-value="spoolId"
+              :custom-filter="spoolFilter"
               label="Link this tag to a spool"
               variant="outlined"
               density="compact"
               clearable
               hide-details
               class="flex-grow-1"
-            />
+            >
+              <template #item="{ item, props: itemProps }">
+                <v-list-item v-bind="itemProps" lines="two" class="py-2">
+                  <template #prepend>
+                    <div
+                      class="rounded-circle mr-2"
+                      :style="{
+                        width: '26px',
+                        height: '26px',
+                        background: item.raw.filamentType?.colorHex || '#9e9e9e',
+                        flexShrink: 0,
+                        border: '2px solid rgba(255,255,255,0.12)',
+                      }"
+                    />
+                  </template>
+                  <template #title>
+                    <span class="text-body-2 font-weight-medium">
+                      {{ item.raw.filamentType?.brand }} · {{ item.raw.filamentType?.name }}
+                    </span>
+                  </template>
+                  <template #subtitle>
+                    <div class="d-flex align-center ga-1 mb-1">
+                      <v-chip size="x-small" variant="tonal" density="compact">{{ item.raw.filamentType?.material }}</v-chip>
+                      <span v-if="item.raw.filamentType?.color" class="text-caption">{{ item.raw.filamentType.color }}</span>
+                      <v-spacer />
+                      <span class="text-caption font-weight-medium" :class="`text-${pctColor(spoolPct(item.raw))}`">
+                        {{ Math.round(Math.max(0, item.raw.currentWeight_g - (item.raw.coreWeight_g ?? item.raw.filamentType?.spoolWeight_g ?? 200))) }}g left
+                      </span>
+                    </div>
+                    <v-progress-linear
+                      :model-value="spoolPct(item.raw)"
+                      :color="pctColor(spoolPct(item.raw))"
+                      rounded
+                      height="3"
+                      bg-color="rgba(0,0,0,0.08)"
+                    />
+                  </template>
+                </v-list-item>
+              </template>
+            </v-autocomplete>
             <v-btn
               color="primary"
               :loading="linkingTag"
@@ -301,12 +392,12 @@
               Math.round(
                 Math.max(
                   0,
-                  effectiveWeight - (spool.filamentType?.spoolWeight_g ?? 200),
+                  effectiveWeight - (spool.coreWeight_g ?? spool.filamentType?.spoolWeight_g ?? 200),
                 ),
               )
             }}g</strong
           >
-          (subtracting {{ spool.filamentType?.spoolWeight_g ?? 200 }}g spool)
+          (subtracting {{ spool.coreWeight_g ?? spool.filamentType?.spoolWeight_g ?? 200 }}g spool)
         </div>
       </v-card-text>
     </v-card>
@@ -362,19 +453,28 @@ esp32Store.fetchDevices();
 // Fetch all spool holders so we have currentWeight_g live via WS
 holderStore.fetchSpoolHolders();
 
-const spoolItems = computed(() =>
-  spoolStore.spools.map((s) => ({
-    spoolId: s.spoolId,
-    label: [
-      s.filamentType?.brand,
-      s.filamentType?.name,
-      s.filamentType?.color ? `· ${s.filamentType.color}` : "",
-      `(${Math.round(Math.max(0, s.currentWeight_g - (s.coreWeight_g ?? s.filamentType?.spoolWeight_g ?? 200)))}g)`,
-    ]
-      .filter(Boolean)
-      .join(" "),
-  })),
-);
+function spoolSearchText(s) {
+  return [s.filamentType?.brand, s.filamentType?.name, s.filamentType?.material, s.filamentType?.color, s.notes]
+    .filter(Boolean).join(' ');
+}
+
+function spoolFilter(value, query, item) {
+  const s = item.raw;
+  const text = [s.filamentType?.brand, s.filamentType?.name, s.filamentType?.material, s.filamentType?.color, s.notes]
+    .filter(Boolean).join(' ').toLowerCase();
+  return text.includes(query.toLowerCase());
+}
+
+function spoolPct(s) {
+  const core = s.coreWeight_g ?? s.filamentType?.spoolWeight_g ?? 200;
+  const net = Math.max(0, s.currentWeight_g - core);
+  const init = Math.max(0, s.initialWeight_g - core);
+  return init > 0 ? (net / init) * 100 : 0;
+}
+
+function pctColor(pct) {
+  return pct > 50 ? 'success' : pct > 20 ? 'warning' : 'error';
+}
 
 async function lookupByTag(tagId) {
   unknownTag.value = null;
