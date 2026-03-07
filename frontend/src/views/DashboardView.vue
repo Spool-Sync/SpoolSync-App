@@ -10,7 +10,9 @@
             <v-icon :icon="stat.icon" size="40" class="mr-4" />
             <div>
               <div class="text-h4 font-weight-bold">{{ stat.value }}</div>
-              <div class="text-body-2 text-medium-emphasis">{{ stat.label }}</div>
+              <div class="text-body-2 text-medium-emphasis">
+                {{ stat.label }}
+              </div>
             </div>
           </v-card-text>
         </v-card>
@@ -41,7 +43,9 @@
     <v-row class="mb-4">
       <v-col cols="12">
         <v-card rounded="xl">
-          <v-card-title class="pa-4 pb-2">Remaining by Filament Type</v-card-title>
+          <v-card-title class="pa-4 pb-2"
+            >Remaining by Filament Type</v-card-title
+          >
           <v-card-text>
             <FilamentTypeChart :items="typeBreakdown" />
           </v-card-text>
@@ -66,7 +70,7 @@
             v-for="spool in lowStockSpools"
             :key="spool.spoolId"
             :title="`${spool.filamentType?.brand} ${spool.filamentType?.name}`"
-            :subtitle="`${Math.round(Math.max(0, spool.currentWeight_g - (spool.filamentType?.spoolWeight_g ?? 200)))}g filament remaining`"
+            :subtitle="`${Math.round(Math.max(0, spool.currentWeight_g - (spool.coreWeight_g ?? spool.filamentType?.spoolWeight_g ?? 200)))}g filament remaining`"
             :to="`/spools/${spool.spoolId}`"
             prepend-icon="mdi-reel"
           />
@@ -92,39 +96,66 @@ const usageTrendByType = ref([]);
 onMounted(async () => {
   const [, trendRes] = await Promise.all([
     Promise.all([spoolStore.fetchSpools(), printerStore.fetchPrinters()]),
-    apiClient.get('/spools/usage-trend-by-type'),
+    apiClient.get("/spools/usage-trend-by-type"),
   ]);
   usageTrendByType.value = trendRes.data;
 });
 
 const stats = computed(() => [
-  { label: "Total Spools", value: spoolStore.spools.length, icon: "mdi-movie-roll", color: "primary" },
-  { label: "Active Printers", value: printerStore.printers.filter(p => p.status === "PRINTING").length, icon: "mdi-printer-3d", color: "success" },
-  { label: "Low Stock", value: lowStockSpools.value.length, icon: "mdi-alert-outline", color: "warning" },
-  { label: "Pending Orders", value: spoolStore.spools.filter(s => s.orderStatus === "ORDERED").length, icon: "mdi-cart-outline", color: "info" },
+  {
+    label: "Total Spools",
+    value: spoolStore.spools.length,
+    icon: "mdi-movie-roll",
+    color: "primary",
+  },
+  {
+    label: "Active Printers",
+    value: printerStore.printers.filter((p) => p.status === "PRINTING").length,
+    icon: "mdi-printer-3d",
+    color: "success",
+  },
+  {
+    label: "Low Stock",
+    value: lowStockSpools.value.length,
+    icon: "mdi-alert-outline",
+    color: "warning",
+  },
+  {
+    label: "Pending Orders",
+    value: spoolStore.spools.filter((s) => s.orderStatus === "ORDERED").length,
+    icon: "mdi-cart-outline",
+    color: "info",
+  },
 ]);
 
 const lowStockSpools = computed(() =>
-  spoolStore.spools.filter(s => s.orderStatus === "REORDER_NEEDED"),
+  spoolStore.spools.filter((s) => s.orderStatus === "REORDER_NEEDED"),
 );
 
 const statusChartData = computed(() => {
   const statuses = { IN_STOCK: 0, REORDER_NEEDED: 0, ORDERED: 0, DELIVERED: 0 };
-  spoolStore.spools.forEach(s => { statuses[s.orderStatus] = (statuses[s.orderStatus] || 0) + 1; });
+  spoolStore.spools.forEach((s) => {
+    statuses[s.orderStatus] = (statuses[s.orderStatus] || 0) + 1;
+  });
   return {
     labels: ["In Stock", "Reorder Needed", "Ordered", "Delivered"],
-    datasets: [{ data: Object.values(statuses), backgroundColor: ["#2ECC71","#F39C12","#3498DB","#9B59B6"] }],
+    datasets: [
+      {
+        data: Object.values(statuses),
+        backgroundColor: ["#2ECC71", "#F39C12", "#3498DB", "#9B59B6"],
+      },
+    ],
   };
 });
 
 // Breakdown by filament type — total remaining per brand+name+color combination
 const typeBreakdown = computed(() => {
   const map = {};
-  spoolStore.spools.forEach(s => {
+  spoolStore.spools.forEach((s) => {
     const ft = s.filamentType;
     if (!ft) return;
     const key = ft.filamentTypeId;
-    const label = `${ft.brand} ${ft.name}${ft.color ? ` · ${ft.color}` : ''}`;
+    const label = `${ft.brand} ${ft.name}${ft.color ? ` · ${ft.color}` : ""}`;
     const sw = ft.spoolWeight_g ?? 200;
     const remaining = Math.max(0, s.currentWeight_g - sw);
     if (!map[key]) map[key] = { label, value: 0, hex: ft.colorHex || null };

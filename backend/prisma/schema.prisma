@@ -139,6 +139,7 @@ model Spool {
   filamentTypeId      String
   initialWeight_g     Float
   currentWeight_g     Float
+  coreWeight_g        Float?
   printStartWeight_g  Float?
   dateAdded           DateTime    @default(now())
   currentLocationId   String?

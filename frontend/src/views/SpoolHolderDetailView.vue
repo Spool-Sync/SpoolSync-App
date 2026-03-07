@@ -2,12 +2,24 @@
   <div>
     <div class="d-flex align-center mb-4">
       <v-btn icon="mdi-arrow-left" variant="text" @click="$router.back()" />
-      <h1 class="text-h5 font-weight-bold ml-2">{{ holder?.name || 'Spool Holder' }}</h1>
+      <h1 class="text-h5 font-weight-bold ml-2">
+        {{ holder?.name || "Spool Holder" }}
+      </h1>
       <v-spacer />
-      <v-btn color="primary" variant="tonal" prepend-icon="mdi-pencil" @click="showEdit = true">Edit</v-btn>
+      <v-btn
+        color="primary"
+        variant="tonal"
+        prepend-icon="mdi-pencil"
+        @click="showEdit = true"
+        >Edit</v-btn
+      >
     </div>
 
-    <v-overlay v-if="loading" :model-value="true" class="align-center justify-center">
+    <v-overlay
+      v-if="loading"
+      :model-value="true"
+      class="align-center justify-center"
+    >
       <v-progress-circular indeterminate size="64" />
     </v-overlay>
 
@@ -21,13 +33,19 @@
               <div>
                 <span class="text-caption text-medium-emphasis">Type</span>
                 <div>
-                  <v-chip size="small" :color="holder.type === 'ACTIVE' ? 'success' : 'default'" variant="tonal">
+                  <v-chip
+                    size="small"
+                    :color="holder.type === 'ACTIVE' ? 'success' : 'default'"
+                    variant="tonal"
+                  >
                     {{ holder.type }}
                   </v-chip>
                 </div>
               </div>
               <div>
-                <span class="text-caption text-medium-emphasis">Assignment</span>
+                <span class="text-caption text-medium-emphasis"
+                  >Assignment</span
+                >
                 <div>
                   <v-chip
                     size="small"
@@ -44,7 +62,9 @@
                 <div class="text-body-2">{{ holder.attachedPrinter.name }}</div>
               </div>
               <div v-if="holder.storageLocation">
-                <span class="text-caption text-medium-emphasis">Storage Location</span>
+                <span class="text-caption text-medium-emphasis"
+                  >Storage Location</span
+                >
                 <div class="text-body-2">{{ holder.storageLocation.name }}</div>
               </div>
             </div>
@@ -62,17 +82,54 @@
           <v-card-text class="text-center">
             <div v-if="holder.hasLoadCell">
               <div class="text-h3 font-weight-bold">
-                {{ liveWeight !== null ? Math.round(Math.max(0, liveWeight - (holder.associatedSpool?.filamentType?.spoolWeight_g ?? 200))) : '—' }}
+                {{
+                  liveWeight !== null
+                    ? Math.round(
+                        Math.max(
+                          0,
+                          liveWeight -
+                            (holder.associatedSpool?.coreWeight_g ??
+                              holder.associatedSpool?.filamentType
+                                ?.spoolWeight_g ??
+                              200),
+                        ),
+                      )
+                    : "—"
+                }}
                 <span class="text-h6 text-medium-emphasis">g filament</span>
               </div>
-              <div v-if="liveWeight !== null" class="text-caption text-medium-emphasis mt-1">
-                {{ Math.round(liveWeight) }}g gross · {{ holder.associatedSpool?.filamentType?.spoolWeight_g ?? 200 }}g spool core
+              <div
+                v-if="liveWeight !== null"
+                class="text-caption text-medium-emphasis mt-1"
+              >
+                {{ Math.round(liveWeight) }}g gross ·
+                {{
+                  holder.associatedSpool?.coreWeight_g ??
+                  holder.associatedSpool?.filamentType?.spoolWeight_g ??
+                  200
+                }}g spool core
               </div>
-              <div v-if="holder.associatedSpool" class="text-caption text-medium-emphasis mt-1">
-                Initial: {{ Math.round(Math.max(0, holder.associatedSpool.initialWeight_g - (holder.associatedSpool.filamentType?.spoolWeight_g ?? 200))) }}g filament
+              <div
+                v-if="holder.associatedSpool"
+                class="text-caption text-medium-emphasis mt-1"
+              >
+                Initial:
+                {{
+                  Math.round(
+                    Math.max(
+                      0,
+                      holder.associatedSpool.initialWeight_g -
+                        (holder.associatedSpool.coreWeight_g ??
+                          holder.associatedSpool.filamentType?.spoolWeight_g ??
+                          200),
+                    ),
+                  )
+                }}g filament
               </div>
             </div>
-            <div v-else class="text-medium-emphasis py-4">No load cell on this holder</div>
+            <div v-else class="text-medium-emphasis py-4">
+              No load cell on this holder
+            </div>
           </v-card-text>
         </v-card>
       </v-col>
@@ -86,15 +143,29 @@
           </v-card-title>
           <v-card-text class="text-center py-4">
             <div v-if="liveNfcTagId">
-              <v-icon size="36" color="success" class="mb-2">mdi-nfc-tap</v-icon>
-              <div class="text-caption text-medium-emphasis mb-1">Tag detected</div>
-              <div class="text-body-2 font-weight-medium text-mono">{{ liveNfcTagId }}</div>
+              <v-icon size="36" color="success" class="mb-2"
+                >mdi-nfc-tap</v-icon
+              >
+              <div class="text-caption text-medium-emphasis mb-1">
+                Tag detected
+              </div>
+              <div class="text-body-2 font-weight-medium text-mono">
+                {{ liveNfcTagId }}
+              </div>
             </div>
             <div v-else>
-              <v-icon size="36" color="medium-emphasis" class="mb-2">mdi-nfc-off</v-icon>
+              <v-icon size="36" color="medium-emphasis" class="mb-2"
+                >mdi-nfc-off</v-icon
+              >
               <div class="text-body-2 text-medium-emphasis">No tag present</div>
             </div>
-            <div v-if="holder.nfcReaderChannel !== null && holder.nfcReaderChannel !== undefined" class="text-caption text-medium-emphasis mt-2">
+            <div
+              v-if="
+                holder.nfcReaderChannel !== null &&
+                holder.nfcReaderChannel !== undefined
+              "
+              class="text-caption text-medium-emphasis mt-2"
+            >
               Channel {{ holder.nfcReaderChannel }}
             </div>
           </v-card-text>
@@ -110,7 +181,10 @@
               <div class="d-flex align-center mb-2">
                 <v-avatar
                   size="24"
-                  :style="{ backgroundColor: holder.associatedSpool.filamentType?.colorHex || '#aaa' }"
+                  :style="{
+                    backgroundColor:
+                      holder.associatedSpool.filamentType?.colorHex || '#aaa',
+                  }"
                   class="mr-2"
                 />
                 <span class="font-weight-medium">
@@ -145,20 +219,27 @@
             Load Cell Calibration
           </v-card-title>
           <v-card-text class="pa-4 pt-0">
-
             <!-- Live raw ADC -->
             <v-sheet rounded="lg" color="surface-variant" class="pa-3 mb-4">
-              <div class="text-caption text-medium-emphasis mb-1">Live Raw ADC</div>
-              <div class="text-h6 font-weight-bold" style="font-family: monospace">
-                {{ liveRawAdc !== null ? liveRawAdc.toLocaleString() : '—' }}
+              <div class="text-caption text-medium-emphasis mb-1">
+                Live Raw ADC
               </div>
-              <div class="text-caption text-medium-emphasis">Updates with each sensor report</div>
+              <div
+                class="text-h6 font-weight-bold"
+                style="font-family: monospace"
+              >
+                {{ liveRawAdc !== null ? liveRawAdc.toLocaleString() : "—" }}
+              </div>
+              <div class="text-caption text-medium-emphasis">
+                Updates with each sensor report
+              </div>
             </v-sheet>
 
             <!-- Step 1: Zero -->
             <div class="text-subtitle-2 mb-1">Step 1 — Zero</div>
             <div class="text-body-2 text-medium-emphasis mb-2">
-              Remove the spool. With only the empty holder on the scale, click Zero.
+              Remove the spool. With only the empty holder on the scale, click
+              Zero.
             </div>
             <v-btn
               color="secondary"
@@ -180,7 +261,8 @@
             <!-- Step 2: Scale -->
             <div class="text-subtitle-2 mb-1">Step 2 — Set Scale</div>
             <div class="text-body-2 text-medium-emphasis mb-2">
-              Place a spool of known weight, enter that weight below, then click Calculate.
+              Place a spool of known weight, enter that weight below, then click
+              Calculate.
             </div>
             <div class="d-flex align-center gap-2">
               <v-text-field
@@ -198,13 +280,20 @@
                 variant="tonal"
                 prepend-icon="mdi-calculator"
                 :loading="scaling"
-                :disabled="!knownWeight || liveRawAdc === null || holder.loadCellOffset === null"
+                :disabled="
+                  !knownWeight ||
+                  liveRawAdc === null ||
+                  holder.loadCellOffset === null
+                "
                 @click="doSetScale"
               >
                 Calculate &amp; Apply
               </v-btn>
             </div>
-            <div v-if="holder.loadCellOffset === null" class="text-caption text-warning mt-1">
+            <div
+              v-if="holder.loadCellOffset === null"
+              class="text-caption text-warning mt-1"
+            >
               Complete Step 1 first.
             </div>
 
@@ -212,9 +301,12 @@
 
             <!-- Current calibration summary -->
             <div class="text-caption text-medium-emphasis">
-              Offset: <strong>{{ holder.loadCellOffset?.toLocaleString() ?? 'not set' }}</strong>
-              &nbsp;·&nbsp;
-              Scale: <strong>{{ holder.loadCellScale ?? 'not set' }}</strong> raw/g
+              Offset:
+              <strong>{{
+                holder.loadCellOffset?.toLocaleString() ?? "not set"
+              }}</strong>
+              &nbsp;·&nbsp; Scale:
+              <strong>{{ holder.loadCellScale ?? "not set" }}</strong> raw/g
             </div>
           </v-card-text>
         </v-card>
@@ -235,19 +327,27 @@
               </div>
               <div>
                 <span class="text-caption text-medium-emphasis">Device ID</span>
-                <div class="text-body-2 text-mono">{{ holder.esp32Device.uniqueDeviceId }}</div>
+                <div class="text-body-2 text-mono">
+                  {{ holder.esp32Device.uniqueDeviceId }}
+                </div>
               </div>
               <div v-if="holder.esp32Device.ipAddress">
-                <span class="text-caption text-medium-emphasis">IP Address</span>
-                <div class="text-body-2">{{ holder.esp32Device.ipAddress }}</div>
+                <span class="text-caption text-medium-emphasis"
+                  >IP Address</span
+                >
+                <div class="text-body-2">
+                  {{ holder.esp32Device.ipAddress }}
+                </div>
               </div>
               <div v-if="holder.esp32Device.lastSeen">
                 <span class="text-caption text-medium-emphasis">Last Seen</span>
-                <div class="text-body-2">{{ new Date(holder.esp32Device.lastSeen).toLocaleString() }}</div>
+                <div class="text-body-2">
+                  {{ new Date(holder.esp32Device.lastSeen).toLocaleString() }}
+                </div>
               </div>
               <div>
                 <span class="text-caption text-medium-emphasis">Channel</span>
-                <div class="text-body-2">{{ holder.channel ?? '—' }}</div>
+                <div class="text-body-2">{{ holder.channel ?? "—" }}</div>
               </div>
             </div>
           </v-card-text>
@@ -256,16 +356,20 @@
     </v-row>
 
     <v-dialog v-model="showEdit" max-width="600">
-      <SpoolHolderForm :holder="holder" @saved="handleSaved" @cancel="showEdit = false" />
+      <SpoolHolderForm
+        :holder="holder"
+        @saved="handleSaved"
+        @cancel="showEdit = false"
+      />
     </v-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue';
-import { useRoute } from 'vue-router';
-import SpoolHolderForm from '@/components/forms/SpoolHolderForm.vue';
-import { useSpoolHolderStore } from '@/store/spoolHolders';
+import { ref, onMounted, onUnmounted } from "vue";
+import { useRoute } from "vue-router";
+import SpoolHolderForm from "@/components/forms/SpoolHolderForm.vue";
+import { useSpoolHolderStore } from "@/store/spoolHolders";
 
 const route = useRoute();
 const spoolHolderStore = useSpoolHolderStore();
@@ -289,11 +393,14 @@ onMounted(async () => {
 
 // Listen for real-time sensor updates via the store
 const unwatch = spoolHolderStore.$subscribe((_mutation, state) => {
-  const updated = state.holders.find((h) => h.spoolHolderId === route.params.spoolHolderId);
+  const updated = state.holders.find(
+    (h) => h.spoolHolderId === route.params.spoolHolderId,
+  );
   if (!updated) return;
-  if (updated.currentWeight_g !== undefined) liveWeight.value = updated.currentWeight_g;
+  if (updated.currentWeight_g !== undefined)
+    liveWeight.value = updated.currentWeight_g;
   if (updated.lastRawAdc !== undefined) liveRawAdc.value = updated.lastRawAdc;
-  if ('nfcTagId' in updated) liveNfcTagId.value = updated.nfcTagId ?? null;
+  if ("nfcTagId" in updated) liveNfcTagId.value = updated.nfcTagId ?? null;
 });
 
 onUnmounted(() => unwatch());
@@ -307,9 +414,12 @@ async function handleSaved() {
 async function doZero() {
   zeroing.value = true;
   try {
-    const updated = await spoolHolderStore.calibrate(route.params.spoolHolderId, {
-      offset: liveRawAdc.value,
-    });
+    const updated = await spoolHolderStore.calibrate(
+      route.params.spoolHolderId,
+      {
+        offset: liveRawAdc.value,
+      },
+    );
     holder.value = { ...holder.value, ...updated };
   } finally {
     zeroing.value = false;
@@ -317,11 +427,20 @@ async function doZero() {
 }
 
 async function doSetScale() {
-  if (!knownWeight.value || liveRawAdc.value === null || holder.value.loadCellOffset === null) return;
-  const scale = (liveRawAdc.value - holder.value.loadCellOffset) / knownWeight.value;
+  if (
+    !knownWeight.value ||
+    liveRawAdc.value === null ||
+    holder.value.loadCellOffset === null
+  )
+    return;
+  const scale =
+    (liveRawAdc.value - holder.value.loadCellOffset) / knownWeight.value;
   scaling.value = true;
   try {
-    const updated = await spoolHolderStore.calibrate(route.params.spoolHolderId, { scale });
+    const updated = await spoolHolderStore.calibrate(
+      route.params.spoolHolderId,
+      { scale },
+    );
     holder.value = { ...holder.value, ...updated };
   } finally {
     scaling.value = false;
@@ -329,17 +448,25 @@ async function doSetScale() {
 }
 
 function assignmentColor(type) {
-  const map = { PRINTER: 'blue', STORAGE: 'green', INGEST_POINT: 'orange' };
-  return map[type] || 'default';
+  const map = { PRINTER: "blue", STORAGE: "green", INGEST_POINT: "orange" };
+  return map[type] || "default";
 }
 
 function assignmentIcon(type) {
-  const map = { PRINTER: 'mdi-printer-3d', STORAGE: 'mdi-archive', INGEST_POINT: 'mdi-tray-arrow-down' };
-  return map[type] || 'mdi-help';
+  const map = {
+    PRINTER: "mdi-printer-3d",
+    STORAGE: "mdi-archive",
+    INGEST_POINT: "mdi-tray-arrow-down",
+  };
+  return map[type] || "mdi-help";
 }
 
 function assignmentLabel(type) {
-  const map = { PRINTER: 'Printer', STORAGE: 'Storage', INGEST_POINT: 'Ingest Point' };
+  const map = {
+    PRINTER: "Printer",
+    STORAGE: "Storage",
+    INGEST_POINT: "Ingest Point",
+  };
   return map[type] || type;
 }
 </script>

@@ -5,7 +5,6 @@
     }}</v-card-title>
     <v-card-text>
       <v-form ref="form" @submit.prevent="handleSubmit">
-
         <!-- ── EDIT MODE: only weight, location, and NFC tag ── -->
         <template v-if="spool">
           <!-- Read-only filament type display -->
@@ -13,27 +12,44 @@
             v-if="spool.filamentType"
             rounded="lg"
             class="mb-4 pa-3"
-            :style="{ background: 'rgba(var(--v-theme-surface-variant), 0.4)', border: '1px solid rgba(var(--v-border-color), 0.12)' }"
+            :style="{
+              background: 'rgba(var(--v-theme-surface-variant), 0.4)',
+              border: '1px solid rgba(var(--v-border-color), 0.12)',
+            }"
           >
             <template #prepend>
               <div
                 class="rounded-circle mr-2"
-                :style="{ width: '20px', height: '20px', background: spool.filamentType.colorHex || '#9e9e9e', flexShrink: 0 }"
+                :style="{
+                  width: '20px',
+                  height: '20px',
+                  background: spool.filamentType.colorHex || '#9e9e9e',
+                  flexShrink: 0,
+                }"
               />
             </template>
             <v-list-item-title class="text-body-2 font-weight-medium">
               {{ spool.filamentType.brand }} · {{ spool.filamentType.material }}
             </v-list-item-title>
             <v-list-item-subtitle class="text-caption">
-              {{ spool.filamentType.name }}{{ spool.filamentType.color ? ` · ${spool.filamentType.color}` : '' }}
+              {{ spool.filamentType.name
+              }}{{
+                spool.filamentType.color ? ` · ${spool.filamentType.color}` : ""
+              }}
             </v-list-item-subtitle>
           </v-list-item>
 
           <!-- Weight section: ingest mode or manual mode -->
           <div class="mb-2">
-
             <!-- ── Ingest mode ── -->
-            <div v-if="showIngest" class="pa-3 rounded-lg" style="border: 1px solid rgba(var(--v-border-color), 0.2); background: rgba(var(--v-theme-surface-variant), 0.3)">
+            <div
+              v-if="showIngest"
+              class="pa-3 rounded-lg"
+              style="
+                border: 1px solid rgba(var(--v-border-color), 0.2);
+                background: rgba(var(--v-theme-surface-variant), 0.3);
+              "
+            >
               <!-- Header: ingest point selector + pencil to go manual -->
               <div class="d-flex align-center mb-3">
                 <v-select
@@ -66,20 +82,45 @@
                 <!-- Two-column: saved weight vs live sensor weight -->
                 <div class="d-flex ga-4 mb-3">
                   <div class="flex-1">
-                    <div class="text-caption text-medium-emphasis mb-1">Saved weight</div>
-                    <div class="text-h6 font-weight-bold">{{ Math.round(formData.currentWeight_g) }}g</div>
+                    <div class="text-caption text-medium-emphasis mb-1">
+                      Saved weight
+                    </div>
+                    <div class="text-h6 font-weight-bold">
+                      {{ Math.round(formData.currentWeight_g) }}g
+                    </div>
                     <div class="text-caption text-medium-emphasis">
-                      {{ Math.round(Math.max(0, formData.currentWeight_g - (spool?.filamentType?.spoolWeight_g ?? 200))) }}g filament
+                      {{
+                        Math.round(
+                          Math.max(
+                            0,
+                            formData.currentWeight_g - effectiveCoreWeight,
+                          ),
+                        )
+                      }}g filament
                     </div>
                   </div>
                   <v-divider vertical />
                   <div class="flex-1">
-                    <div class="text-caption text-medium-emphasis mb-1">On scale now</div>
-                    <div class="text-h6 font-weight-bold" :class="liveWeight != null ? '' : 'text-medium-emphasis'">
-                      {{ liveWeight != null ? `${Math.round(liveWeight)}g` : '—' }}
+                    <div class="text-caption text-medium-emphasis mb-1">
+                      On scale now
                     </div>
-                    <div v-if="liveWeight != null" class="text-caption text-medium-emphasis">
-                      {{ Math.round(Math.max(0, liveWeight - (spool?.filamentType?.spoolWeight_g ?? 200))) }}g filament
+                    <div
+                      class="text-h6 font-weight-bold"
+                      :class="liveWeight != null ? '' : 'text-medium-emphasis'"
+                    >
+                      {{
+                        liveWeight != null ? `${Math.round(liveWeight)}g` : "—"
+                      }}
+                    </div>
+                    <div
+                      v-if="liveWeight != null"
+                      class="text-caption text-medium-emphasis"
+                    >
+                      {{
+                        Math.round(
+                          Math.max(0, liveWeight - effectiveCoreWeight),
+                        )
+                      }}g filament
                     </div>
                   </div>
                 </div>
@@ -92,10 +133,15 @@
                   @click="applyLiveWeight"
                 >
                   <v-icon start>mdi-check</v-icon>
-                  Use scale reading ({{ liveWeight != null ? `${Math.round(liveWeight)}g` : '—' }})
+                  Use scale reading ({{
+                    liveWeight != null ? `${Math.round(liveWeight)}g` : "—"
+                  }})
                 </v-btn>
               </div>
-              <div v-else class="text-caption text-medium-emphasis text-center py-2">
+              <div
+                v-else
+                class="text-caption text-medium-emphasis text-center py-2"
+              >
                 Select an ingest point to read live weight
               </div>
             </div>
@@ -120,13 +166,15 @@
                       variant="text"
                       icon="mdi-scale"
                       :disabled="ingestHolders.length === 0"
-                      @click="showIngest = true; persistIngestPreference(true)"
+                      @click="
+                        showIngest = true;
+                        persistIngestPreference(true);
+                      "
                     />
                   </template>
                 </v-tooltip>
               </template>
             </v-text-field>
-
           </div>
 
           <v-select
@@ -158,6 +206,17 @@
           </v-select>
 
           <v-text-field
+            v-model.number="formData.coreWeight_g"
+            label="Spool Core Weight (g)"
+            type="number"
+            variant="outlined"
+            density="compact"
+            :hint="`Filament type default: ${spool?.filamentType?.spoolWeight_g ?? 200}g — set here to override for this spool`"
+            persistent-hint
+            class="mb-2"
+          />
+
+          <v-text-field
             v-model="formData.nfcTagId"
             label="NFC Tag ID (optional)"
             prepend-inner-icon="mdi-nfc"
@@ -187,8 +246,14 @@
               <v-list-item v-else v-bind="itemProps">
                 <template #append>
                   <v-btn
-                    :icon="favoriteBrands.has(item.raw.value) ? 'mdi-star' : 'mdi-star-outline'"
-                    :color="favoriteBrands.has(item.raw.value) ? 'warning' : undefined"
+                    :icon="
+                      favoriteBrands.has(item.raw.value)
+                        ? 'mdi-star'
+                        : 'mdi-star-outline'
+                    "
+                    :color="
+                      favoriteBrands.has(item.raw.value) ? 'warning' : undefined
+                    "
                     size="x-small"
                     variant="text"
                     @click.stop="toggleFavorite(item.raw.value)"
@@ -225,11 +290,19 @@
           <!-- Color swatch picker -->
           <div v-if="selectedMaterial" class="mb-3">
             <div class="text-caption text-medium-emphasis mb-2">Color</div>
-            <div v-if="filamentTypeStore.loading" class="d-flex align-center ga-2 mb-2">
+            <div
+              v-if="filamentTypeStore.loading"
+              class="d-flex align-center ga-2 mb-2"
+            >
               <v-progress-circular indeterminate size="18" width="2" />
-              <span class="text-caption text-medium-emphasis">Loading variants…</span>
+              <span class="text-caption text-medium-emphasis"
+                >Loading variants…</span
+              >
             </div>
-            <div v-else-if="filteredFilamentTypes.length" class="d-flex flex-wrap ga-2 mb-1">
+            <div
+              v-else-if="filteredFilamentTypes.length"
+              class="d-flex flex-wrap ga-2 mb-1"
+            >
               <v-tooltip
                 v-for="variant in filteredFilamentTypes"
                 :key="variant.color || 'standard'"
@@ -244,13 +317,18 @@
                     :style="{ background: variant.colorHex || '#9e9e9e' }"
                     @click="selectVariant(variant)"
                   >
-                    <v-icon v-if="isSelected(variant)" size="14" color="white">mdi-check</v-icon>
+                    <v-icon v-if="isSelected(variant)" size="14" color="white"
+                      >mdi-check</v-icon
+                    >
                   </div>
                 </template>
               </v-tooltip>
             </div>
-            <p v-if="selectedVariant" class="text-body-2 text-medium-emphasis mt-1">
-              {{ selectedVariant.color || 'Standard' }}
+            <p
+              v-if="selectedVariant"
+              class="text-body-2 text-medium-emphasis mt-1"
+            >
+              {{ selectedVariant.color || "Standard" }}
             </p>
           </div>
 
@@ -373,13 +451,14 @@
             rows="2"
           />
         </template>
-
       </v-form>
     </v-card-text>
     <v-card-actions class="pa-4 pt-0">
       <v-spacer />
       <v-btn @click="$emit('cancel')">Cancel</v-btn>
-      <v-btn color="primary" :loading="saving" @click="handleSubmit">Save</v-btn>
+      <v-btn color="primary" :loading="saving" @click="handleSubmit"
+        >Save</v-btn
+      >
     </v-card-actions>
   </v-card>
 </template>
@@ -412,7 +491,12 @@ const reorderUnit = ref("g");
 const reorderThresholdInput = ref(null);
 const spoolCoreWeight = ref(200);
 
-const orderStatusOptions = ["IN_STOCK", "REORDER_NEEDED", "ORDERED", "DELIVERED"];
+const orderStatusOptions = [
+  "IN_STOCK",
+  "REORDER_NEEDED",
+  "ORDERED",
+  "DELIVERED",
+];
 
 // ── Ingest-point live weighing (edit mode only) ────────────────────────────
 const showIngest = ref(false);
@@ -435,7 +519,10 @@ function switchToManual() {
 
 const liveWeight = computed(() => {
   if (!selectedIngestId.value) return null;
-  return spoolHolderStore.ingestUpdates[selectedIngestId.value]?.currentWeight_g ?? null;
+  return (
+    spoolHolderStore.ingestUpdates[selectedIngestId.value]?.currentWeight_g ??
+    null
+  );
 });
 
 function applyLiveWeight() {
@@ -473,16 +560,30 @@ const selectedVariant = ref(null);
 
 // Storage location
 const storageLocations = ref([]);
-const storageLocationId = ref(props.spool?.storageLocations?.[0]?.storageLocationId ?? null);
+const storageLocationId = ref(
+  props.spool?.storageLocations?.[0]?.storageLocationId ?? null,
+);
 
 const formData = reactive({
   filamentTypeId: props.spool?.filamentTypeId || "",
-  initialWeight_g: props.spool?.initialWeight_g ?? props.defaults.initialWeight_g ?? 1000,
-  currentWeight_g: props.spool?.currentWeight_g ?? props.defaults.currentWeight_g ?? 1000,
+  initialWeight_g:
+    props.spool?.initialWeight_g ?? props.defaults.initialWeight_g ?? 1000,
+  currentWeight_g:
+    props.spool?.currentWeight_g ?? props.defaults.currentWeight_g ?? 1000,
+  coreWeight_g:
+    props.spool?.coreWeight_g ??
+    props.spool?.filamentType?.spoolWeight_g ??
+    null,
   nfcTagId: props.spool?.nfcTagId ?? props.defaults.nfcTagId ?? "",
   orderStatus: props.spool?.orderStatus || "IN_STOCK",
   notes: props.spool?.notes || "",
 });
+
+// Effective core weight for this spool (per-spool override or filament type default)
+const effectiveCoreWeight = computed(
+  () =>
+    formData.coreWeight_g ?? props.spool?.filamentType?.spoolWeight_g ?? 200,
+);
 
 // Compute filament type reorder threshold in grams
 const filamentTypeReorderThreshold_g = computed(() => {
@@ -490,7 +591,8 @@ const filamentTypeReorderThreshold_g = computed(() => {
   if (val === null || val === undefined || val === "") return null;
   if (reorderUnit.value === "g") return val;
   if (reorderUnit.value === "kg") return val * 1000;
-  if (reorderUnit.value === "spools") return val * (formData.initialWeight_g || 1000);
+  if (reorderUnit.value === "spools")
+    return val * (formData.initialWeight_g || 1000);
   return null;
 });
 
@@ -499,19 +601,28 @@ onMounted(async () => {
     filamentTypeStore.fetchBrands(),
     apiClient.get("/storage-locations"),
   ];
-  if (props.spool) requests.push(apiClient.get("/spool-holders", { params: { assignmentType: 'INGEST_POINT' } }));
+  if (props.spool)
+    requests.push(
+      apiClient.get("/spool-holders", {
+        params: { assignmentType: "INGEST_POINT" },
+      }),
+    );
 
-  const [brandsResult, locationsResult, holdersResult] = await Promise.all(requests);
+  const [brandsResult, locationsResult, holdersResult] =
+    await Promise.all(requests);
   brands.value = brandsResult;
   storageLocations.value = locationsResult.data;
   if (holdersResult) {
-    ingestHolders.value = holdersResult.data.filter(h => h.hasLoadCell);
+    ingestHolders.value = holdersResult.data.filter((h) => h.hasLoadCell);
     const savedId = authStore.preferences.ingestStationId;
     const savedMode = authStore.preferences.useIngestMode;
     if (savedMode && ingestHolders.value.length > 0) {
       showIngest.value = true;
       // Restore last-used holder if it still exists
-      if (savedId && ingestHolders.value.find(h => h.spoolHolderId === savedId)) {
+      if (
+        savedId &&
+        ingestHolders.value.find((h) => h.spoolHolderId === savedId)
+      ) {
         selectedIngestId.value = savedId;
       }
     }
@@ -556,7 +667,9 @@ async function onBrandChange() {
   formData.filamentTypeId = "";
   initialWeightLocked.value = false;
   materialTypesLoading.value = true;
-  materialTypes.value = await filamentTypeStore.fetchMaterialTypes(selectedBrand.value);
+  materialTypes.value = await filamentTypeStore.fetchMaterialTypes(
+    selectedBrand.value,
+  );
   materialTypesLoading.value = false;
   materials.value = [];
   filteredFilamentTypes.value = [];
@@ -588,22 +701,31 @@ async function handleSubmit() {
   saving.value = true;
   try {
     if (props.spool) {
-      // Edit: only send weight, location, nfcTagId
+      // Edit: only send weight, location, nfcTagId, coreWeight_g
       const payload = {
         currentWeight_g: formData.currentWeight_g,
+        coreWeight_g: formData.coreWeight_g ?? null,
         nfcTagId: formData.nfcTagId || null,
         storageLocationId: storageLocationId.value ?? null,
       };
-      const updated = await spoolStore.updateSpool(props.spool.spoolId, payload);
+      const updated = await spoolStore.updateSpool(
+        props.spool.spoolId,
+        payload,
+      );
       emit("saved", updated);
     } else {
       // Create: full payload
       const payload = { ...formData };
       if (!payload.filamentTypeId && selectedVariant.value) {
-        payload.filamentTypeData = { ...selectedVariant.value, spoolWeight_g: spoolCoreWeight.value };
+        payload.filamentTypeData = {
+          ...selectedVariant.value,
+          spoolWeight_g: spoolCoreWeight.value,
+        };
       }
       payload.filamentTypeSpoolWeight_g = spoolCoreWeight.value;
-      payload.filamentTypeReorderThreshold_g = filamentTypeReorderThreshold_g.value;
+      payload.coreWeight_g = spoolCoreWeight.value;
+      payload.filamentTypeReorderThreshold_g =
+        filamentTypeReorderThreshold_g.value;
       payload.storageLocationId = storageLocationId.value ?? null;
       const created = await spoolStore.createSpool(payload);
       emit("saved", created);

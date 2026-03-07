@@ -98,7 +98,9 @@
                     Math.max(
                       0,
                       spool.currentWeight_g -
-                        (spool.filamentType?.spoolWeight_g ?? 200),
+                        (spool.coreWeight_g ??
+                          spool.filamentType?.spoolWeight_g ??
+                          200),
                     ),
                   )
                 }}g
@@ -367,7 +369,7 @@ const spoolItems = computed(() =>
       s.filamentType?.brand,
       s.filamentType?.name,
       s.filamentType?.color ? `· ${s.filamentType.color}` : "",
-      `(${Math.round(Math.max(0, s.currentWeight_g - (s.filamentType?.spoolWeight_g ?? 200)))}g)`,
+      `(${Math.round(Math.max(0, s.currentWeight_g - (s.coreWeight_g ?? s.filamentType?.spoolWeight_g ?? 200)))}g)`,
     ]
       .filter(Boolean)
       .join(" "),
@@ -423,20 +425,32 @@ const nfcSupported = ref("NDEFReader" in window);
 const nfcScanning = ref(false);
 const nfcStarting = ref(false);
 let nfcAbort = null;
+let nfcReader = null; // held at module scope to prevent GC
 
 async function startNfc() {
   nfcStarting.value = true;
   try {
     nfcAbort = new AbortController();
-    const reader = new window.NDEFReader();
-    reader.addEventListener("reading", ({ message }) => {
-      const tagId = extractTagText(message);
-      if (tagId) lookupByTag(tagId);
+    nfcReader = new window.NDEFReader();
+    nfcReader.addEventListener("reading", ({ serialNumber }) => {
+      if (serialNumber) lookupByTag(serialNumber);
     });
-    await reader.scan({ signal: nfcAbort.signal });
+    nfcReader.addEventListener("readingerror", () => {
+      saveResult.value = {
+        type: "error",
+        message: "NFC read error — try again",
+      };
+    });
+    await nfcReader.scan({ signal: nfcAbort.signal });
     nfcScanning.value = true;
-  } catch {
+  } catch (err) {
     nfcScanning.value = false;
+    if (err?.name !== "AbortError") {
+      saveResult.value = {
+        type: "error",
+        message: `NFC unavailable: ${err?.message ?? err}`,
+      };
+    }
   } finally {
     nfcStarting.value = false;
   }
@@ -444,21 +458,8 @@ async function startNfc() {
 
 function stopNfc() {
   nfcAbort?.abort();
+  nfcReader = null;
   nfcScanning.value = false;
-}
-
-function extractTagText(message) {
-  for (const record of message.records) {
-    if (record.recordType === "text") {
-      return new TextDecoder(record.encoding || "utf-8")
-        .decode(record.data)
-        .trim();
-    }
-    if (record.recordType === "url") {
-      return new TextDecoder().decode(record.data).split("/").pop().trim();
-    }
-  }
-  return null;
 }
 
 // ── ESP32 scale source ────────────────────────────────────────────────────────
