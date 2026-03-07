@@ -36,7 +36,7 @@ const printerInclude = {
       associatedSpool: { include: { filamentType: true } },
       stagedSpool: { include: { filamentType: true } },
     },
-    orderBy: { createdAt: 'asc' },
+    orderBy: { slotIndex: 'asc' },
   },
 };
 
@@ -285,17 +285,21 @@ export async function syncStatus(printerId) {
 export async function setSpoolHolderCount(printerId, count) {
   const existing = await prisma.spoolHolder.findMany({
     where: { attachedPrinterId: printerId, assignmentType: 'PRINTER' },
-    orderBy: { createdAt: 'asc' },
+    orderBy: { slotIndex: 'asc' },
   });
 
   const diff = count - existing.length;
 
   if (diff > 0) {
-    // Create new slots
-    for (let i = existing.length + 1; i <= count; i++) {
+    // Determine the next slotIndex and display number from the current max.
+    // Using max+1 (rather than length+1) keeps indices stable after deletions.
+    const maxSlotIndex = existing.reduce((m, h) => Math.max(m, h.slotIndex ?? -1), -1);
+    for (let i = 0; i < diff; i++) {
+      const slotIndex = maxSlotIndex + 1 + i;
       await prisma.spoolHolder.create({
         data: {
-          name: `Slot ${i}`,
+          name: `Slot ${slotIndex + 1}`,
+          slotIndex,
           type: 'PASSIVE',
           assignmentType: 'PRINTER',
           attachedPrinterId: printerId,
@@ -303,13 +307,12 @@ export async function setSpoolHolderCount(printerId, count) {
       });
     }
   } else if (diff < 0) {
-    // Remove extras, preferring unoccupied ones
+    // Remove extras, preferring unoccupied ones then highest slotIndex.
     const toRemove = [...existing]
       .sort((a, b) => {
-        // unoccupied first
         if (!a.associatedSpoolId && b.associatedSpoolId) return -1;
         if (a.associatedSpoolId && !b.associatedSpoolId) return 1;
-        return 0;
+        return (b.slotIndex ?? 0) - (a.slotIndex ?? 0);
       })
       .slice(0, Math.abs(diff));
     for (const h of toRemove) {
@@ -394,9 +397,7 @@ export async function assignSpoolToHolder(spoolHolderId, spoolId, force = false)
   // Push filament type to firmware if the integration supports it (non-fatal).
   if (updated.features?.includes('filament_push')) {
     const spool = updated.spoolHolders.find(h => h.spoolHolderId === spoolHolderId);
-    const toolIndex = updated.spoolHolders
-      .filter(h => h.assignmentType === 'PRINTER')
-      .findIndex(h => h.spoolHolderId === spoolHolderId);
+    const toolIndex = spool?.slotIndex ?? -1;
     if (toolIndex >= 0) {
       // If SpoolSync had no spool assigned to this slot, the printer's physical
       // filament sensor might still detect filament that was loaded outside of
@@ -456,9 +457,7 @@ export async function removeSpoolFromHolder(spoolHolderId, force = false) {
 
   // Trigger physical unload + clear filament metadata on firmware (non-fatal).
   if (printer.features?.includes('filament_push')) {
-    const toolIndex = printer.spoolHolders
-      .filter(h => h.assignmentType === 'PRINTER')
-      .findIndex(h => h.spoolHolderId === spoolHolderId);
+    const toolIndex = holder.slotIndex ?? -1;
     if (toolIndex >= 0) {
       // Unload the physical filament. Pass the removed spool's filament type so the
       // firmware can pre-heat to the correct nozzle temperature before retracting.
@@ -556,12 +555,10 @@ export async function beginReload(printerId) {
     throw err;
   }
 
-  // toolIndex must match the position among PRINTER-type holders (same logic as
-  // assignSpoolToHolder) so the firmware receives the correct slot number.
-  // spoolHolders is already ordered createdAt asc via printerInclude.
+  // toolIndex comes directly from the stable slotIndex field on each holder.
   const stagedHolders = printer.spoolHolders
     .filter(h => h.assignmentType === 'PRINTER')
-    .map((h, idx) => ({ holder: h, toolIndex: idx }))
+    .map(h => ({ holder: h, toolIndex: h.slotIndex ?? 0 }))
     .filter(({ holder }) => holder.stagedSpoolId);
 
   if (stagedHolders.length === 0) return printer;

@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import { getIO } from '../websocket/index.js';
 import * as spoolHolderService from './spoolHolderService.js';
+import logger from '../middleware/logger.js';
 
 const prisma = new PrismaClient();
 
@@ -127,15 +128,23 @@ export async function report(uniqueDeviceId, { ipAddress, channels = [], nfcRead
     },
   });
 
+  logger.info(`[esp32:report] device=${uniqueDeviceId} (${device.deviceId}) channels=${channels.length} nfcReadings=${nfcReadings.length}`);
+
   for (const ch of channels) {
     // -1 is the HX711 error sentinel (unconnected channel or read failure)
-    if (ch.raw_adc === -1) continue;
+    if (ch.raw_adc === -1) {
+      logger.debug(`[esp32:report] channel=${ch.channel} raw_adc=-1 (sentinel, skipping)`);
+      continue;
+    }
 
     const holder = await prisma.spoolHolder.findFirst({
       where: { esp32DeviceId: device.deviceId, channel: ch.channel },
       select: { spoolHolderId: true, loadCellOffset: true, loadCellScale: true },
     });
-    if (!holder) continue;
+    if (!holder) {
+      logger.debug(`[esp32:report] channel=${ch.channel} raw_adc=${ch.raw_adc} — no holder matched`);
+      continue;
+    }
 
     let weight_g;
     if (ch.raw_adc !== undefined) {
@@ -143,9 +152,11 @@ export async function report(uniqueDeviceId, { ipAddress, channels = [], nfcRead
       const offset = holder.loadCellOffset ?? 0;
       const scale  = holder.loadCellScale  ?? 1;
       weight_g = (ch.raw_adc - offset) / scale;
+      logger.info(`[esp32:report] channel=${ch.channel} holder=${holder.spoolHolderId} raw_adc=${ch.raw_adc} offset=${offset} scale=${scale} → weight_g=${weight_g.toFixed(1)}`);
     } else if (ch.weight_g !== undefined) {
       // Legacy firmware that applies calibration on-device
       weight_g = ch.weight_g;
+      logger.info(`[esp32:report] channel=${ch.channel} holder=${holder.spoolHolderId} weight_g=${weight_g} (legacy on-device calibration)`);
     }
 
     if (weight_g !== undefined) {
@@ -161,8 +172,11 @@ export async function report(uniqueDeviceId, { ipAddress, channels = [], nfcRead
       where: { esp32DeviceId: device.deviceId, nfcReaderChannel: nfc.channel },
     });
     if (holder) {
+      logger.info(`[esp32:report] nfc channel=${nfc.channel} holder=${holder.spoolHolderId} tag=${nfc.nfcTagId || '(none)'}`);
       // Empty string means no card present — pass null to clear the holder's tag
       await spoolHolderService.updateSensorData(holder.spoolHolderId, { nfcTagId: nfc.nfcTagId || null });
+    } else {
+      logger.debug(`[esp32:report] nfc channel=${nfc.channel} tag=${nfc.nfcTagId || '(none)'} — no holder matched`);
     }
   }
 

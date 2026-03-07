@@ -135,8 +135,9 @@ export async function updateSensorData(spoolHolderId, { weight_g, raw_adc, nfcTa
   getIO()?.emit('spool:update', {
     spoolId: holder.associatedSpoolId,
     spoolHolderId,
-    currentWeight_g: weight_g,
-    lastRawAdc: raw_adc,
+    ...(weight_g !== undefined && { currentWeight_g: weight_g }),
+    ...(raw_adc !== undefined && { lastRawAdc: raw_adc }),
+    ...(nfcTagId !== undefined && { nfcTagId: holder.nfcTagId }),
   });
 
   // ── INGEST_POINT: debounce weight sync + ingest UI event ──────────────────

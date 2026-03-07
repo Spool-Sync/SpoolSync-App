@@ -491,16 +491,16 @@ const hasStagedSlots = computed(() =>
   printer.value?.spoolHolders.some(h => h.stagedSpoolId) ?? false
 );
 
-// Holders sorted by creation date — index matches tool/slot number sent to firmware.
+// Holders sorted by slotIndex — matches the stable firmware tool number.
 const sortedHolders = computed(() =>
-  [...(printer.value?.spoolHolders ?? [])].sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1))
+  [...(printer.value?.spoolHolders ?? [])].sort((a, b) => (a.slotIndex ?? 0) - (b.slotIndex ?? 0))
 );
 
 // spoolHolderId of the slot that is currently active (printing/loaded) on the firmware.
-// activeTool is a 0-based index into sortedHolders (same indexing as the firmware tool number).
+// activeTool is the 0-based firmware tool number, which equals slotIndex.
 const activeHolderId = computed(() => {
   if (printer.value?.activeTool == null) return null;
-  return sortedHolders.value[printer.value.activeTool]?.spoolHolderId ?? null;
+  return printer.value.spoolHolders.find(h => h.slotIndex === printer.value.activeTool)?.spoolHolderId ?? null;
 });
 
 // Printing-override confirmation

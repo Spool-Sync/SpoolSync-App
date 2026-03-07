@@ -101,7 +101,7 @@
               @drop.prevent="onDrop(printer.printerId, holder)"
             >
               <!-- Slot number -->
-              <div class="slot-drop__index text-caption text-medium-emphasis">T{{ idx }}</div>
+              <div class="slot-drop__index text-caption text-medium-emphasis">T{{ (holder.slotIndex ?? idx) + 1 }}</div>
 
               <!-- Staged spool (pending, not yet sent) -->
               <template v-if="stagedAssignments[printer.printerId]?.[holder.spoolHolderId]">
@@ -213,9 +213,7 @@ const filteredSpools = computed(() => {
 });
 
 function sortedHolders(printer) {
-  return [...(printer.spoolHolders ?? [])].sort((a, b) =>
-    a.createdAt < b.createdAt ? -1 : 1,
-  );
+  return [...(printer.spoolHolders ?? [])].sort((a, b) => (a.slotIndex ?? 0) - (b.slotIndex ?? 0));
 }
 
 function hasStagedChanges(printerId) {

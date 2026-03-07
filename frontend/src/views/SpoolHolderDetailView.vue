@@ -77,6 +77,30 @@
         </v-card>
       </v-col>
 
+      <!-- NFC Reader Card -->
+      <v-col v-if="holder.hasNfc" cols="12" md="4">
+        <v-card rounded="xl" class="mb-4">
+          <v-card-title class="pa-4 pb-2">
+            <v-icon class="mr-2">mdi-nfc</v-icon>
+            NFC Reader
+          </v-card-title>
+          <v-card-text class="text-center py-4">
+            <div v-if="liveNfcTagId">
+              <v-icon size="36" color="success" class="mb-2">mdi-nfc-tap</v-icon>
+              <div class="text-caption text-medium-emphasis mb-1">Tag detected</div>
+              <div class="text-body-2 font-weight-medium text-mono">{{ liveNfcTagId }}</div>
+            </div>
+            <div v-else>
+              <v-icon size="36" color="medium-emphasis" class="mb-2">mdi-nfc-off</v-icon>
+              <div class="text-body-2 text-medium-emphasis">No tag present</div>
+            </div>
+            <div v-if="holder.nfcReaderChannel !== null && holder.nfcReaderChannel !== undefined" class="text-caption text-medium-emphasis mt-2">
+              Channel {{ holder.nfcReaderChannel }}
+            </div>
+          </v-card-text>
+        </v-card>
+      </v-col>
+
       <!-- Associated Spool Card (not shown for ingest points) -->
       <v-col v-if="holder.assignmentType !== 'INGEST_POINT'" cols="12" md="4">
         <v-card rounded="xl" class="mb-4">
@@ -250,6 +274,7 @@ const loading = ref(true);
 const showEdit = ref(false);
 const liveWeight = ref(null);
 const liveRawAdc = ref(null);
+const liveNfcTagId = ref(null);
 const zeroing = ref(false);
 const scaling = ref(false);
 const knownWeight = ref(null);
@@ -258,6 +283,7 @@ onMounted(async () => {
   holder.value = await spoolHolderStore.fetchHolder(route.params.spoolHolderId);
   liveWeight.value = holder.value.currentWeight_g ?? null;
   liveRawAdc.value = holder.value.lastRawAdc ?? null;
+  liveNfcTagId.value = holder.value.nfcTagId ?? null;
   loading.value = false;
 });
 
@@ -267,6 +293,7 @@ const unwatch = spoolHolderStore.$subscribe((_mutation, state) => {
   if (!updated) return;
   if (updated.currentWeight_g !== undefined) liveWeight.value = updated.currentWeight_g;
   if (updated.lastRawAdc !== undefined) liveRawAdc.value = updated.lastRawAdc;
+  if ('nfcTagId' in updated) liveNfcTagId.value = updated.nfcTagId ?? null;
 });
 
 onUnmounted(() => unwatch());

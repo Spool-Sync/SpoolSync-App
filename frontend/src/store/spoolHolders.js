@@ -24,6 +24,12 @@ export const useSpoolHolderStore = defineStore('spoolHolders', () => {
 
   async function fetchHolder(spoolHolderId) {
     const { data } = await apiClient.get(`/spool-holders/${spoolHolderId}`);
+    const idx = holders.value.findIndex((h) => h.spoolHolderId === spoolHolderId);
+    if (idx !== -1) {
+      holders.value[idx] = data;
+    } else {
+      holders.value.push(data);
+    }
     return data;
   }
 
