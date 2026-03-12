@@ -18,9 +18,15 @@
       <tr class="cursor-pointer" @click="toggleGroup(item)">
         <td :colspan="columns.length" class="bg-surface-variant">
           <div class="d-flex align-center ga-2 py-1">
-            <v-icon size="18" color="medium-emphasis">{{ isGroupOpen(item) ? 'mdi-chevron-down' : 'mdi-chevron-right' }}</v-icon>
+            <v-icon size="18" color="medium-emphasis">{{
+              isGroupOpen(item) ? "mdi-chevron-down" : "mdi-chevron-right"
+            }}</v-icon>
             <v-chip size="small" variant="tonal" label>{{ item.value }}</v-chip>
-            <span class="text-caption text-medium-emphasis">{{ item.items.length }} spool{{ item.items.length === 1 ? '' : 's' }}</span>
+            <span class="text-caption text-medium-emphasis"
+              >{{ item.items.length }} spool{{
+                item.items.length === 1 ? "" : "s"
+              }}</span
+            >
           </div>
         </td>
       </tr>
@@ -28,7 +34,7 @@
     <template #item.filament="{ item }">
       <div class="d-flex align-center">
         <v-tooltip
-          :text="item.filamentType?.color || 'No color'"
+          :text="item.filamentType?.color || item.filamentType?.material || 'No color'"
           location="top"
         >
           <template #activator="{ props: tip }">
@@ -60,11 +66,12 @@
             item.filamentType?.material
           }}</v-chip>
           <v-chip
+            v-if="item.filamentType?.color"
             class="ml-2"
             size="x-small"
             variant="tonal"
             :color="item.filamentType?.colorHex || '#aaa'"
-            >{{ item.filamentType?.color || "No color" }}</v-chip
+            >{{ item.filamentType?.color }}</v-chip
           >
         </div>
       </div>
@@ -96,7 +103,7 @@
 
     <template #item.orderStatus="{ item }">
       <v-chip
-        :color="statusColor(item.orderStatus)"
+        :color="spoolStatusColor(item.orderStatus)"
         size="small"
         variant="tonal"
       >
@@ -174,6 +181,7 @@
 <script setup>
 import { computed } from "vue";
 import { useDisplay } from "vuetify";
+import { spoolStatusColor } from "@/utils/spoolStatus";
 
 const props = defineProps({
   spools: { type: Array, default: () => [] },
@@ -181,7 +189,7 @@ const props = defineProps({
   total: { type: Number, default: 0 },
   page: { type: Number, default: 1 },
   itemsPerPage: { type: Number, default: 25 },
-  groupBy: { type: String, default: 'none' },
+  groupBy: { type: String, default: "none" },
 });
 const emit = defineEmits([
   "edit",
@@ -209,8 +217,10 @@ const headers = computed(() => [
 
 // Map groupBy preference to Vuetify group-by config
 const tableGroupBy = computed(() => {
-  if (props.groupBy === 'material') return [{ key: 'filamentType.material', order: 'asc' }];
-  if (props.groupBy === 'brand')    return [{ key: 'filamentType.brand',    order: 'asc' }];
+  if (props.groupBy === "material")
+    return [{ key: "filamentType.material", order: "asc" }];
+  if (props.groupBy === "brand")
+    return [{ key: "filamentType.brand", order: "asc" }];
   return [];
 });
 
@@ -243,13 +253,4 @@ function weightColor(spool) {
   return "error";
 }
 
-function statusColor(status) {
-  const map = {
-    IN_STOCK: "success",
-    REORDER_NEEDED: "warning",
-    ORDERED: "info",
-    DELIVERED: "success",
-  };
-  return map[status] || "default";
-}
 </script>

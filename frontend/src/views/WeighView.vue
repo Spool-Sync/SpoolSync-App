@@ -94,16 +94,36 @@
               </template>
               <template #title>
                 <span class="text-body-2 font-weight-medium">
-                  {{ item.raw.filamentType?.brand }} · {{ item.raw.filamentType?.name }}
+                  {{ item.raw.filamentType?.brand }} ·
+                  {{ item.raw.filamentType?.name }}
                 </span>
               </template>
               <template #subtitle>
                 <div class="d-flex align-center ga-1 mb-1">
-                  <v-chip size="x-small" variant="tonal" density="compact">{{ item.raw.filamentType?.material }}</v-chip>
-                  <span v-if="item.raw.filamentType?.color" class="text-caption">{{ item.raw.filamentType.color }}</span>
+                  <v-chip size="x-small" variant="tonal" density="compact">{{
+                    item.raw.filamentType?.material
+                  }}</v-chip>
+                  <span
+                    v-if="item.raw.filamentType?.color"
+                    class="text-caption"
+                    >{{ item.raw.filamentType.color }}</span
+                  >
                   <v-spacer />
-                  <span class="text-caption font-weight-medium" :class="`text-${pctColor(spoolPct(item.raw))}`">
-                    {{ Math.round(Math.max(0, item.raw.currentWeight_g - (item.raw.coreWeight_g ?? item.raw.filamentType?.spoolWeight_g ?? 200))) }}g left
+                  <span
+                    class="text-caption font-weight-medium"
+                    :class="`text-${pctColor(spoolPct(item.raw))}`"
+                  >
+                    {{
+                      Math.round(
+                        Math.max(
+                          0,
+                          item.raw.currentWeight_g -
+                            (item.raw.coreWeight_g ??
+                              item.raw.filamentType?.spoolWeight_g ??
+                              200),
+                        ),
+                      )
+                    }}g left
                   </span>
                 </div>
                 <v-progress-linear
@@ -120,10 +140,22 @@
             <div class="d-flex align-center ga-2">
               <div
                 class="rounded-circle"
-                :style="{ width: '14px', height: '14px', background: item.raw.filamentType?.colorHex || '#9e9e9e', flexShrink: 0 }"
+                :style="{
+                  width: '14px',
+                  height: '14px',
+                  background: item.raw.filamentType?.colorHex || '#9e9e9e',
+                  flexShrink: 0,
+                }"
               />
-              <span class="text-body-2">{{ item.raw.filamentType?.brand }} {{ item.raw.filamentType?.name }}</span>
-              <span v-if="item.raw.filamentType?.color" class="text-caption text-medium-emphasis">{{ item.raw.filamentType.color }}</span>
+              <span class="text-body-2"
+                >{{ item.raw.filamentType?.brand }}
+                {{ item.raw.filamentType?.name }}</span
+              >
+              <span
+                v-if="item.raw.filamentType?.color"
+                class="text-caption text-medium-emphasis"
+                >{{ item.raw.filamentType.color }}</span
+              >
             </div>
           </template>
         </v-autocomplete>
@@ -199,7 +231,8 @@
                       :style="{
                         width: '26px',
                         height: '26px',
-                        background: item.raw.filamentType?.colorHex || '#9e9e9e',
+                        background:
+                          item.raw.filamentType?.colorHex || '#9e9e9e',
                         flexShrink: 0,
                         border: '2px solid rgba(255,255,255,0.12)',
                       }"
@@ -207,16 +240,39 @@
                   </template>
                   <template #title>
                     <span class="text-body-2 font-weight-medium">
-                      {{ item.raw.filamentType?.brand }} · {{ item.raw.filamentType?.name }}
+                      {{ item.raw.filamentType?.brand }} ·
+                      {{ item.raw.filamentType?.name }}
                     </span>
                   </template>
                   <template #subtitle>
                     <div class="d-flex align-center ga-1 mb-1">
-                      <v-chip size="x-small" variant="tonal" density="compact">{{ item.raw.filamentType?.material }}</v-chip>
-                      <span v-if="item.raw.filamentType?.color" class="text-caption">{{ item.raw.filamentType.color }}</span>
+                      <v-chip
+                        size="x-small"
+                        variant="tonal"
+                        density="compact"
+                        >{{ item.raw.filamentType?.material }}</v-chip
+                      >
+                      <span
+                        v-if="item.raw.filamentType?.color"
+                        class="text-caption"
+                        >{{ item.raw.filamentType.color }}</span
+                      >
                       <v-spacer />
-                      <span class="text-caption font-weight-medium" :class="`text-${pctColor(spoolPct(item.raw))}`">
-                        {{ Math.round(Math.max(0, item.raw.currentWeight_g - (item.raw.coreWeight_g ?? item.raw.filamentType?.spoolWeight_g ?? 200))) }}g left
+                      <span
+                        class="text-caption font-weight-medium"
+                        :class="`text-${pctColor(spoolPct(item.raw))}`"
+                      >
+                        {{
+                          Math.round(
+                            Math.max(
+                              0,
+                              item.raw.currentWeight_g -
+                                (item.raw.coreWeight_g ??
+                                  item.raw.filamentType?.spoolWeight_g ??
+                                  200),
+                            ),
+                          )
+                        }}g left
                       </span>
                     </div>
                     <v-progress-linear
@@ -392,12 +448,17 @@
               Math.round(
                 Math.max(
                   0,
-                  effectiveWeight - (spool.coreWeight_g ?? spool.filamentType?.spoolWeight_g ?? 200),
+                  effectiveWeight -
+                    (spool.coreWeight_g ??
+                      spool.filamentType?.spoolWeight_g ??
+                      200),
                 ),
               )
             }}g</strong
           >
-          (subtracting {{ spool.coreWeight_g ?? spool.filamentType?.spoolWeight_g ?? 200 }}g spool)
+          (subtracting
+          {{ spool.coreWeight_g ?? spool.filamentType?.spoolWeight_g ?? 200 }}g
+          spool)
         </div>
       </v-card-text>
     </v-card>
@@ -454,14 +515,29 @@ esp32Store.fetchDevices();
 holderStore.fetchSpoolHolders();
 
 function spoolSearchText(s) {
-  return [s.filamentType?.brand, s.filamentType?.name, s.filamentType?.material, s.filamentType?.color, s.notes]
-    .filter(Boolean).join(' ');
+  return [
+    s.filamentType?.brand,
+    s.filamentType?.name,
+    s.filamentType?.material,
+    s.filamentType?.color,
+    s.notes,
+  ]
+    .filter(Boolean)
+    .join(" ");
 }
 
 function spoolFilter(value, query, item) {
   const s = item.raw;
-  const text = [s.filamentType?.brand, s.filamentType?.name, s.filamentType?.material, s.filamentType?.color, s.notes]
-    .filter(Boolean).join(' ').toLowerCase();
+  const text = [
+    s.filamentType?.brand,
+    s.filamentType?.name,
+    s.filamentType?.material,
+    s.filamentType?.color,
+    s.notes,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
   return text.includes(query.toLowerCase());
 }
 
@@ -473,7 +549,7 @@ function spoolPct(s) {
 }
 
 function pctColor(pct) {
-  return pct > 50 ? 'success' : pct > 20 ? 'warning' : 'error';
+  return pct > 50 ? "success" : pct > 20 ? "warning" : "error";
 }
 
 async function lookupByTag(tagId) {

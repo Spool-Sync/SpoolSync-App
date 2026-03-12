@@ -146,7 +146,7 @@
                 />
                 <div class="flex-grow-1">
                   <div class="text-body-2 font-weight-bold">
-                    {{ printer.reloadJobState.isReplace ? 'Replacing' : 'Loading' }}
+                    {{ printer.reloadJobState.isUnload ? 'Unloading' : printer.reloadJobState.isReplace ? 'Replacing' : 'Loading' }}
                     Tool {{ (printer.reloadJobState.currentTool ?? 0) + 1 }}
                     <v-chip size="x-small" variant="tonal" class="ml-1">
                       {{ printer.reloadJobState.done }}/{{ printer.reloadJobState.total }}
@@ -191,15 +191,17 @@
                     />
                     <!-- Staged spool overlay (front, dashed ring) -->
                     <div
-                      v-if="holder.stagedSpool"
-                      class="rounded-circle"
+                      v-if="holder.stagedSpool || holder.stagedEmpty"
+                      class="rounded-circle d-flex align-center justify-center"
                       :style="{
                         width: '30px', height: '30px',
-                        background: holder.stagedSpool.filamentType?.colorHex || '#aaa',
-                        border: '2px dashed rgba(var(--v-theme-success), 0.9)',
+                        background: holder.stagedEmpty ? 'rgba(var(--v-theme-surface), 0.9)' : (holder.stagedSpool.filamentType?.colorHex || '#aaa'),
+                        border: `2px dashed rgba(var(--v-theme-${holder.stagedEmpty ? 'error' : 'success'}), 0.9)`,
                         position: 'absolute', top: '3px', left: '3px',
                       }"
-                    />
+                    >
+                      <v-icon v-if="holder.stagedEmpty" size="14" color="error">mdi-minus</v-icon>
+                    </div>
                   </div>
 
                   <!-- Holder info -->
@@ -224,9 +226,14 @@
                     </div>
                     <div v-else class="text-caption text-medium-emphasis">Empty</div>
                     <!-- Staged spool line -->
-                    <div v-if="holder.stagedSpool" class="d-flex align-center ga-1 mt-1">
-                      <v-chip size="x-small" color="success" variant="tonal" prepend-icon="mdi-clock-outline">
-                        Pending: {{ holder.stagedSpool.filamentType?.brand }} {{ holder.stagedSpool.filamentType?.name }}
+                    <div v-if="holder.stagedSpool || holder.stagedEmpty" class="d-flex align-center ga-1 mt-1">
+                      <v-chip
+                        size="x-small"
+                        :color="holder.stagedEmpty ? 'error' : 'success'"
+                        variant="tonal"
+                        :prepend-icon="holder.stagedEmpty ? 'mdi-tray-minus' : 'mdi-clock-outline'"
+                      >
+                        {{ holder.stagedEmpty ? 'Pending: Unload' : `Pending: ${holder.stagedSpool.filamentType?.brand} ${holder.stagedSpool.filamentType?.name}` }}
                       </v-chip>
                       <v-btn
                         size="x-small"
@@ -258,6 +265,20 @@
                             color="success"
                             icon="mdi-swap-horizontal"
                             @click="openStageDialog(holder)"
+                          />
+                        </template>
+                      </v-tooltip>
+                      <!-- Buddy: stage as empty (unload) -->
+                      <v-tooltip v-if="printer.features?.includes('filament_reload')" location="left" text="Stage unload">
+                        <template #activator="{ props: tip }">
+                          <v-btn
+                            v-bind="tip"
+                            size="x-small"
+                            variant="tonal"
+                            color="warning"
+                            icon="mdi-tray-minus"
+                            :disabled="!!holder.stagedEmpty"
+                            @click="handleStageEmpty(holder)"
                           />
                         </template>
                       </v-tooltip>
@@ -488,7 +509,7 @@ const staging = ref(false);
 const reloading = ref(false);
 
 const hasStagedSlots = computed(() =>
-  printer.value?.spoolHolders.some(h => h.stagedSpoolId) ?? false
+  printer.value?.spoolHolders.some(h => h.stagedSpoolId || h.stagedEmpty) ?? false
 );
 
 // Holders sorted by slotIndex — matches the stable firmware tool number.
@@ -647,6 +668,10 @@ async function confirmStage() {
   printer.value = await printerStore.stageSpool(stageTarget.value.spoolHolderId, stageSpoolId.value);
   stageDialog.value = false;
   staging.value = false;
+}
+
+async function handleStageEmpty(holder) {
+  printer.value = await printerStore.stageSpool(holder.spoolHolderId, null);
 }
 
 async function handleClearStaged(holder) {

@@ -221,6 +221,7 @@ model SpoolHolder {
   currentWeight_g     Float?
   associatedSpoolId   String?               @unique
   stagedSpoolId       String?
+  stagedEmpty         Boolean               @default(false)
   slotIndex           Int?
   hasLoadCell         Boolean               @default(false)
   loadCellOffset      Float?

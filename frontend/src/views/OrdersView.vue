@@ -15,7 +15,7 @@
       rounded="xl"
     >
       <template #item.status="{ item }">
-        <v-chip :color="statusColor(item.status)" size="small" variant="tonal">
+        <v-chip :color="spoolStatusColor(item.status)" size="small" variant="tonal">
           {{ item.status.replace(/_/g, ' ') }}
         </v-chip>
       </template>
@@ -50,6 +50,7 @@
 import { computed, ref, onMounted } from 'vue';
 import { useDisplay } from 'vuetify';
 import { useOrderStore } from '@/store/orders';
+import { spoolStatusColor } from '@/utils/spoolStatus';
 
 const orderStore = useOrderStore();
 const { smAndDown } = useDisplay();
@@ -80,8 +81,4 @@ async function handleDelete(orderId) {
   await orderStore.deleteOrder(orderId);
 }
 
-function statusColor(status) {
-  const map = { IN_STOCK: 'success', REORDER_NEEDED: 'warning', ORDERED: 'info', DELIVERED: 'success' };
-  return map[status] || 'default';
-}
 </script>

@@ -121,12 +121,12 @@ export async function list({ brand, material, name, custom } = {}) {
       const detail = await detailRes.json();
       const variants = detail.variants?.length
         ? detail.variants
-        : [{ color_name: null, color_hex: null }];
+        : [{ name: null, color_hex: null }];
       return variants.map((v) => ({
         name: detail.name,
         brand: brandObj.name,
         material: materialObj.material,
-        color: v.color_name || null,
+        color: v.name || null,
         colorHex: v.color_hex || null,
         diameter_mm: 1.75,
         density_g_cm3: detail.density || null,
@@ -246,7 +246,7 @@ export async function syncExternal() {
 
         const variants = filamentData.variants?.length
           ? filamentData.variants
-          : [{ color_name: null, color_hex: null, id: filamentData.id }];
+          : [{ name: null, color_hex: null, id: filamentData.id }];
 
         for (const variant of variants) {
           const sourceApiId =
@@ -265,7 +265,7 @@ export async function syncExternal() {
               name: filamentData.name,
               brand: brandData.name,
               material: filamentData.material,
-              color: variant.color_name || null,
+              color: variant.name || null,
               colorHex: variant.color_hex || null,
               diameter_mm: 1.75,
               density_g_cm3: filamentData.density || null,

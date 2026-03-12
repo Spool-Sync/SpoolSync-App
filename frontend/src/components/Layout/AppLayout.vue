@@ -1,7 +1,7 @@
 <template>
   <v-layout>
     <SideNavBar />
-    <HeaderBar />
+    <HeaderBar :nfc-scanning="nfcScanning" />
 
     <!-- Global spool-edit dialog — opened by NFC scan or default-scale trigger -->
     <v-dialog
@@ -48,6 +48,14 @@
       </v-container>
     </v-main>
 
+    <!-- Global NFC-triggered ingest dialog -->
+    <IngestSpoolDialog
+      v-model="showGlobalIngest"
+      :initial-nfc-tag-id="globalIngestTag"
+      :open-print-tag-data="globalIngestOptData"
+      @created="onGlobalIngestCreated"
+    />
+
     <v-snackbar
       v-for="notification in uiStore.notifications"
       :key="notification.id"
@@ -76,18 +84,104 @@ import { ref, onMounted, onUnmounted, watch } from "vue";
 import SideNavBar from "./SideNavBar.vue";
 import HeaderBar from "./HeaderBar.vue";
 import SpoolForm from "@/components/forms/SpoolForm.vue";
+import IngestSpoolDialog from "@/components/dialogs/IngestSpoolDialog.vue";
 import { useUiStore } from "@/store/ui";
 import { useAuthStore } from "@/store/auth";
 import { useSpoolHolderStore } from "@/store/spoolHolders";
 import { useSpoolStore } from "@/store/spools";
 import { startVersionPolling } from "@/services/versionService";
+import apiClient from "@/services/apiClient";
+import { isOpenPrintTag, parseOpenPrintTag } from "@/utils/openPrintTag";
 
 const uiStore = useUiStore();
 const authStore = useAuthStore();
 const holderStore = useSpoolHolderStore();
 const spoolStore = useSpoolStore();
 
-// Global edit dialog — loaded spool object
+// ── Global NFC scanning ───────────────────────────────────────────────────────
+const nfcScanning = ref(false);
+let nfcAbort = null;
+
+// Global ingest dialog (NFC-triggered)
+const showGlobalIngest = ref(false);
+const globalIngestTag = ref(null);
+const globalIngestOptData = ref(null);
+
+watch(showGlobalIngest, (open) => {
+  if (!open) {
+    globalIngestTag.value = null;
+    globalIngestOptData.value = null;
+  }
+});
+
+function onGlobalIngestCreated() {
+  spoolStore.fetchSpools();
+}
+
+async function startGlobalNfc() {
+  if (!('NDEFReader' in window)) return;
+  try {
+    nfcAbort = new AbortController();
+    const reader = new window.NDEFReader();
+    reader.addEventListener('reading', ({ message, serialNumber }) => {
+      const optRecord = message.records.find((r) => isOpenPrintTag(r));
+      if (optRecord) {
+        handleGlobalOpenPrintTag(parseOpenPrintTag(optRecord), serialNumber);
+      } else if (serialNumber) {
+        handleGlobalNfcTag(serialNumber);
+      }
+    });
+    await reader.scan({ signal: nfcAbort.signal });
+    nfcScanning.value = true;
+  } catch (err) {
+    nfcScanning.value = false;
+    if (err?.name !== 'AbortError') {
+      // Permission denied or not supported — silently skip
+      console.debug('[NFC] global scan not started:', err?.name, err?.message);
+    }
+  }
+}
+
+function stopGlobalNfc() {
+  nfcAbort?.abort();
+  nfcScanning.value = false;
+}
+
+async function handleGlobalNfcTag(tagId) {
+  try {
+    const { data } = await apiClient.get(`/spools/by-nfc/${encodeURIComponent(tagId)}`);
+    uiStore.openSpoolEdit(data.spoolId);
+  } catch (err) {
+    if (err.response?.status === 404) {
+      globalIngestTag.value = tagId;
+      showGlobalIngest.value = true;
+    }
+  }
+}
+
+async function handleGlobalOpenPrintTag(tagData, serialNumber) {
+  if (serialNumber) {
+    try {
+      const { data } = await apiClient.get(`/spools/by-nfc/${encodeURIComponent(serialNumber)}`);
+      uiStore.openSpoolEdit(data.spoolId);
+      return;
+    } catch (err) {
+      if (err.response?.status !== 404) return;
+    }
+  }
+  globalIngestTag.value = serialNumber ?? null;
+  globalIngestOptData.value = tagData ?? null;
+  showGlobalIngest.value = true;
+}
+
+// Restart scan when the page becomes visible again (phone unlock, tab switch back)
+function onVisibilityChangeNfc() {
+  if (document.visibilityState === 'visible' && !nfcScanning.value) {
+    startGlobalNfc();
+  }
+}
+
+// ── Global edit dialog — loaded spool object ──────────────────────────────────
 const globalEditSpool = ref(null);
 
 // When editingSpoolId is set, fetch the spool then show the form
@@ -150,11 +244,15 @@ const stopAutoReloadWatch = watch(
 
 onMounted(() => {
   startVersionPolling(() => uiStore.markUpdateAvailable());
+  startGlobalNfc();
+  document.addEventListener('visibilitychange', onVisibilityChangeNfc);
 });
 
 onUnmounted(() => {
   stopAutoReloadWatch();
   document.removeEventListener("visibilitychange", onVisibilityChange);
+  document.removeEventListener('visibilitychange', onVisibilityChangeNfc);
+  stopGlobalNfc();
 });
 </script>
 

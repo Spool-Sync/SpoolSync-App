@@ -422,6 +422,7 @@ export async function removeSpoolFromHolder(spoolHolderId, force = false) {
     where: { spoolHolderId },
     select: {
       associatedSpoolId: true,
+      slotIndex: true,
       attachedPrinterId: true,
       associatedSpool: { select: { filamentType: true } },
     },
@@ -501,7 +502,8 @@ export async function reloadFilaments(printerId, assignments) {
   return printer;
 }
 
-// Stage a spool as pending onto an occupied holder (buddy printers only).
+// Stage a spool (or an empty/unload) as pending onto a holder (buddy printers only).
+// spoolId=null means "stage for removal" — the slot will be unloaded during begin-reload.
 // Does NOT commit to associatedSpoolId; that happens during begin-reload.
 export async function stageSpoolToHolder(spoolHolderId, spoolId) {
   const holder = await prisma.spoolHolder.findUniqueOrThrow({
@@ -516,11 +518,16 @@ export async function stageSpoolToHolder(spoolHolderId, spoolId) {
     throw err;
   }
 
-  await prisma.spool.findUniqueOrThrow({ where: { spoolId } });
+  if (spoolId) {
+    await prisma.spool.findUniqueOrThrow({ where: { spoolId } });
+  }
 
   await prisma.spoolHolder.update({
     where: { spoolHolderId },
-    data: { stagedSpoolId: spoolId },
+    data: {
+      stagedSpoolId: spoolId ?? null,
+      stagedEmpty: spoolId == null,
+    },
   });
 
   const printer = await getById(holder.attachedPrinterId);
@@ -528,7 +535,7 @@ export async function stageSpoolToHolder(spoolHolderId, spoolId) {
   return printer;
 }
 
-// Clear a staged spool without committing it.
+// Clear a staged spool (or staged-empty) without committing it.
 export async function clearStagedSpool(spoolHolderId) {
   const holder = await prisma.spoolHolder.findUniqueOrThrow({
     where: { spoolHolderId },
@@ -537,7 +544,7 @@ export async function clearStagedSpool(spoolHolderId) {
 
   await prisma.spoolHolder.update({
     where: { spoolHolderId },
-    data: { stagedSpoolId: null },
+    data: { stagedSpoolId: null, stagedEmpty: false },
   });
 
   const printer = await getById(holder.attachedPrinterId);
@@ -559,7 +566,7 @@ export async function beginReload(printerId) {
   const stagedHolders = printer.spoolHolders
     .filter(h => h.assignmentType === 'PRINTER')
     .map(h => ({ holder: h, toolIndex: h.slotIndex ?? 0 }))
-    .filter(({ holder }) => holder.stagedSpoolId);
+    .filter(({ holder }) => holder.stagedSpoolId || holder.stagedEmpty);
 
   if (stagedHolders.length === 0) return printer;
 
@@ -594,6 +601,7 @@ async function _runReloadQueue(printerId, queue) {
 
       // Capture replace flag BEFORE commit so it's available for progressState and firmware call.
       const replace = !!holder.associatedSpoolId;
+      const isUnload = holder.stagedEmpty;
 
       // Update progress state with full filament details for the banner UI.
       const progressState = {
@@ -602,12 +610,13 @@ async function _runReloadQueue(printerId, queue) {
         done: doneIndex,
         currentTool: toolIndex,
         isReplace: replace,
-        currentBrand: ft?.brand ?? null,
-        currentMaterial: ft?.material ?? null,
-        currentSpoolName: ft?.name ?? null,
-        currentColor: ft?.colorHex ?? null,
-        currentNozzleTempMin: ft?.nozzleTempMin ?? null,
-        currentNozzleTempMax: ft?.nozzleTempMax ?? null,
+        isUnload,
+        currentBrand: isUnload ? null : (ft?.brand ?? null),
+        currentMaterial: isUnload ? null : (ft?.material ?? null),
+        currentSpoolName: isUnload ? null : (ft?.name ?? null),
+        currentColor: isUnload ? null : (ft?.colorHex ?? null),
+        currentNozzleTempMin: isUnload ? null : (ft?.nozzleTempMin ?? null),
+        currentNozzleTempMax: isUnload ? null : (ft?.nozzleTempMax ?? null),
       };
       const progPrinter = await prisma.printer.update({
         where: { printerId },
@@ -616,24 +625,34 @@ async function _runReloadQueue(printerId, queue) {
       });
       getIO()?.emit('printer:updated', progPrinter);
 
-      // Commit: promote stagedSpoolId → associatedSpoolId.
-      // Use assignSpoolToHolder (force=true) so it correctly clears any previous
-      // holder association for this spool (handles the @unique constraint on associatedSpoolId).
-      // assignSpoolToHolder also pushes the filament type to firmware.
-      await assignSpoolToHolder(holder.spoolHolderId, holder.stagedSpoolId, true);
+      if (isUnload) {
+        // Staged-empty: physically unload filament and clear the slot assignment.
+        // removeSpoolFromHolder handles the firmware unload + pushing null to firmware.
+        await removeSpoolFromHolder(holder.spoolHolderId, true);
+        await prisma.spoolHolder.update({
+          where: { spoolHolderId: holder.spoolHolderId },
+          data: { stagedEmpty: false },
+        });
+      } else {
+        // Commit: promote stagedSpoolId → associatedSpoolId.
+        // Use assignSpoolToHolder (force=true) so it correctly clears any previous
+        // holder association for this spool (handles the @unique constraint on associatedSpoolId).
+        // assignSpoolToHolder also pushes the filament type to firmware.
+        await assignSpoolToHolder(holder.spoolHolderId, holder.stagedSpoolId, true);
 
-      // Clear the staged pointer now that we've committed.
-      await prisma.spoolHolder.update({
-        where: { spoolHolderId: holder.spoolHolderId },
-        data: { stagedSpoolId: null },
-      });
+        // Clear the staged pointer now that we've committed.
+        await prisma.spoolHolder.update({
+          where: { spoolHolderId: holder.spoolHolderId },
+          data: { stagedSpoolId: null },
+        });
 
-      // Trigger firmware filament change:
-      //   XL (replace=true)  → M1600: full unload + load with nozzle heating
-      //   XL (replace=false) → M701:  load into empty slot with preheat
-      //   MMU (any)          → M704:  preload to FINDA (replace flag ignored by firmware)
-      const cd = progPrinter.connectionDetails;
-      await triggerFilamentChange(cd, toolIndex, replace);
+        // Trigger firmware filament change:
+        //   XL (replace=true)  → M1600: full unload + load with nozzle heating
+        //   XL (replace=false) → M701:  load into empty slot with preheat
+        //   MMU (any)          → M704:  preload to FINDA (replace flag ignored by firmware)
+        const cd = progPrinter.connectionDetails;
+        await triggerFilamentChange(cd, toolIndex, replace);
+      }
 
       // Emit incremental progress
       const afterCommit = await prisma.printer.update({

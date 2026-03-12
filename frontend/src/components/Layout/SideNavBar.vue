@@ -82,7 +82,6 @@ const navItems = computed(() => [
 
   { divider: true, key: "filament" },
   { title: "Filament",   icon: "mdi-movie-roll",               to: "/spools" },
-  { title: "Inventory",  icon: "mdi-clipboard-list-outline",   to: "/inventory" },
   { title: "Storage",    icon: "mdi-archive-outline",          to: "/storage" },
 
   { divider: true, key: "printers" },

@@ -12,6 +12,17 @@
     <template #append>
       <RealtimeIndicator class="mr-2 d-none d-sm-flex" />
 
+      <v-chip
+        v-if="nfcScanning"
+        size="small"
+        color="primary"
+        variant="tonal"
+        prepend-icon="mdi-nfc-tap"
+        class="mr-2"
+      >
+        NFC
+      </v-chip>
+
 <v-btn
         :icon="uiStore.theme === 'dark' ? 'mdi-weather-sunny' : 'mdi-weather-night'"
         variant="text"
@@ -48,6 +59,10 @@ import { useRoute, useRouter } from 'vue-router';
 import RealtimeIndicator from '@/components/RealtimeIndicator.vue';
 import { useUiStore } from '@/store/ui';
 import { useAuthStore } from '@/store/auth';
+
+defineProps({
+  nfcScanning: { type: Boolean, default: false },
+});
 
 const uiStore = useUiStore();
 const authStore = useAuthStore();

@@ -28,6 +28,52 @@
     </div>
 
     <template v-else-if="location">
+      <!-- Search & filter bar -->
+      <v-card rounded="xl" class="mb-4 pa-3">
+        <div class="d-flex flex-wrap align-center ga-2">
+          <v-text-field
+            v-model="search"
+            prepend-inner-icon="mdi-magnify"
+            placeholder="Search by NFC tag, brand, color, material…"
+            variant="outlined"
+            density="compact"
+            hide-details
+            clearable
+            style="min-width: 260px; flex: 1"
+          />
+          <v-select
+            v-model="filterMaterial"
+            :items="materialOptions"
+            label="Material"
+            variant="outlined"
+            density="compact"
+            hide-details
+            clearable
+            style="min-width: 140px; max-width: 180px"
+          />
+          <v-select
+            v-model="filterBrand"
+            :items="brandOptions"
+            label="Brand"
+            variant="outlined"
+            density="compact"
+            hide-details
+            clearable
+            style="min-width: 140px; max-width: 200px"
+          />
+          <v-chip
+            v-if="activeFilterCount > 0"
+            closable
+            color="primary"
+            variant="tonal"
+            size="small"
+            @click:close="clearFilters"
+          >
+            {{ activeFilterCount }} filter{{ activeFilterCount > 1 ? 's' : '' }} active
+          </v-chip>
+        </div>
+      </v-card>
+
       <!-- Zones -->
       <v-card
         v-for="zone in location.zones"
@@ -38,7 +84,9 @@
         <v-card-title class="pa-4 pb-2 d-flex align-center">
           <v-icon icon="mdi-label-outline" class="mr-2" />
           <span class="text-subtitle-1 font-weight-bold flex-grow-1">{{ zone.name }}</span>
-          <span class="text-caption text-medium-emphasis mr-4">{{ zone.spools?.length || 0 }} spool(s)</span>
+          <span class="text-caption text-medium-emphasis mr-4">
+            {{ filteredZoneSpools(zone).length }}<template v-if="isFiltered"> / {{ zoneSpools(zone).length }}</template> spool(s)
+          </span>
           <v-btn size="x-small" variant="tonal" icon="mdi-pencil" class="mr-1" @click="openZoneDialog(zone)" />
           <v-btn size="x-small" variant="tonal" icon="mdi-delete" color="error" @click="handleDeleteZone(zone.zoneId)" />
         </v-card-title>
@@ -48,12 +96,12 @@
         <v-divider />
         <v-card-text>
           <SpoolTable
-            v-if="zoneSpools(zone).length"
-            :spools="zoneSpools(zone)"
+            v-if="filteredZoneSpools(zone).length"
+            :spools="filteredZoneSpools(zone)"
             :loading="false"
           />
           <div v-else class="text-center text-medium-emphasis text-caption py-4">
-            No spools in this section
+            {{ isFiltered ? 'No spools match the current filters' : 'No spools in this section' }}
           </div>
         </v-card-text>
       </v-card>
@@ -63,13 +111,15 @@
         <v-card-title class="pa-4 pb-2 text-subtitle-1 font-weight-bold">
           <v-icon icon="mdi-package-variant" class="mr-2" />
           {{ location.zones?.length ? 'Unsectioned Spools' : 'Stored Spools' }}
-          <span class="text-caption text-medium-emphasis ml-2">({{ unzonedSpools.length }})</span>
+          <span class="text-caption text-medium-emphasis ml-2">
+            ({{ filteredUnzonedSpools.length }}<template v-if="isFiltered"> / {{ unzonedSpools.length }}</template>)
+          </span>
         </v-card-title>
         <v-divider />
         <v-card-text>
-          <SpoolTable v-if="unzonedSpools.length" :spools="unzonedSpools" :loading="false" />
+          <SpoolTable v-if="filteredUnzonedSpools.length" :spools="filteredUnzonedSpools" :loading="false" />
           <div v-else class="text-center text-medium-emphasis text-caption py-4">
-            No spools stored here
+            {{ isFiltered ? 'No spools match the current filters' : 'No spools stored here' }}
           </div>
         </v-card-text>
       </v-card>
@@ -119,6 +169,11 @@ const locationStore = useStorageLocationStore();
 const location = ref(null);
 const loading = ref(true);
 
+// Search / filter state
+const search = ref('');
+const filterMaterial = ref(null);
+const filterBrand = ref(null);
+
 const zoneDialog = ref(false);
 const editingZone = ref(null);
 const zoneForm = ref({ name: '', description: '' });
@@ -132,8 +187,60 @@ onMounted(async () => {
 
 const typeInfo = computed(() => storageTypeInfo(location.value?.type));
 
+// All spools across the entire location (flat list for deriving filter options)
+const allSpools = computed(() => {
+  if (!location.value) return [];
+  const fromZones = (location.value.zones ?? []).flatMap(z => (z.spools ?? []).map(ls => ls.spool).filter(Boolean));
+  const unzoned = (location.value.spools ?? []).filter(ls => !ls.zoneId).map(ls => ls.spool).filter(Boolean);
+  return [...fromZones, ...unzoned];
+});
+
+const materialOptions = computed(() =>
+  [...new Set(allSpools.value.map(s => s.filamentType?.material).filter(Boolean))].sort()
+);
+
+const brandOptions = computed(() =>
+  [...new Set(allSpools.value.map(s => s.filamentType?.brand).filter(Boolean))].sort()
+);
+
+const activeFilterCount = computed(() =>
+  [search.value, filterMaterial.value, filterBrand.value].filter(Boolean).length
+);
+
+const isFiltered = computed(() => activeFilterCount.value > 0);
+
+function matchesSpool(spool) {
+  if (!spool) return false;
+  const ft = spool.filamentType ?? {};
+  if (filterMaterial.value && ft.material !== filterMaterial.value) return false;
+  if (filterBrand.value && ft.brand !== filterBrand.value) return false;
+  if (search.value) {
+    const q = search.value.toLowerCase();
+    const fields = [
+      spool.nfcTagId,
+      ft.brand,
+      ft.name,
+      ft.color,
+      ft.colorHex,
+      ft.material,
+    ];
+    if (!fields.some(f => f && String(f).toLowerCase().includes(q))) return false;
+  }
+  return true;
+}
+
+function clearFilters() {
+  search.value = '';
+  filterMaterial.value = null;
+  filterBrand.value = null;
+}
+
 function zoneSpools(zone) {
   return (zone.spools ?? []).map((ls) => ls.spool).filter(Boolean);
+}
+
+function filteredZoneSpools(zone) {
+  return zoneSpools(zone).filter(matchesSpool);
 }
 
 const unzonedSpools = computed(() => {
@@ -143,6 +250,8 @@ const unzonedSpools = computed(() => {
     .map((ls) => ls.spool)
     .filter(Boolean);
 });
+
+const filteredUnzonedSpools = computed(() => unzonedSpools.value.filter(matchesSpool));
 
 function openZoneDialog(zone = null) {
   editingZone.value = zone;

@@ -368,6 +368,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from "vue";
 import { useRoute } from "vue-router";
+import { assignmentColor, assignmentIcon, assignmentLabel } from "@/utils/spoolHolderTypes";
 import SpoolHolderForm from "@/components/forms/SpoolHolderForm.vue";
 import { useSpoolHolderStore } from "@/store/spoolHolders";
 
@@ -447,26 +448,4 @@ async function doSetScale() {
   }
 }
 
-function assignmentColor(type) {
-  const map = { PRINTER: "blue", STORAGE: "green", INGEST_POINT: "orange" };
-  return map[type] || "default";
-}
-
-function assignmentIcon(type) {
-  const map = {
-    PRINTER: "mdi-printer-3d",
-    STORAGE: "mdi-archive",
-    INGEST_POINT: "mdi-tray-arrow-down",
-  };
-  return map[type] || "mdi-help";
-}
-
-function assignmentLabel(type) {
-  const map = {
-    PRINTER: "Printer",
-    STORAGE: "Storage",
-    INGEST_POINT: "Ingest Point",
-  };
-  return map[type] || type;
-}
 </script>

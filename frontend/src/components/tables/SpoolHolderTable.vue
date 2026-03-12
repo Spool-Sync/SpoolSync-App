@@ -82,6 +82,7 @@
 <script setup>
 import { computed } from 'vue';
 import { useDisplay } from 'vuetify';
+import { assignmentColor, assignmentIcon, assignmentLabel } from '@/utils/spoolHolderTypes';
 
 const props = defineProps({
   holders: { type: Array, default: () => [] },
@@ -114,18 +115,4 @@ const headers = computed(() => [
   { title: 'Actions', key: 'actions', sortable: false, align: 'end' },
 ]);
 
-function assignmentColor(type) {
-  const map = { PRINTER: 'blue', STORAGE: 'green', INGEST_POINT: 'orange' };
-  return map[type] || 'default';
-}
-
-function assignmentIcon(type) {
-  const map = { PRINTER: 'mdi-printer-3d', STORAGE: 'mdi-archive', INGEST_POINT: 'mdi-tray-arrow-down' };
-  return map[type] || 'mdi-help';
-}
-
-function assignmentLabel(type) {
-  const map = { PRINTER: 'Printer', STORAGE: 'Storage', INGEST_POINT: 'Ingest' };
-  return map[type] || type;
-}
 </script>

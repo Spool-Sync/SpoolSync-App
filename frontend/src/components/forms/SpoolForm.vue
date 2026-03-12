@@ -305,8 +305,9 @@
             >
               <v-tooltip
                 v-for="variant in filteredFilamentTypes"
-                :key="variant.color || 'standard'"
-                :text="variant.color || 'Standard'"
+                :key="variant.color || variant.filamentTypeId"
+                :text="variant.color"
+                :disabled="!variant.color"
                 location="top"
               >
                 <template #activator="{ props: tip }">
@@ -325,10 +326,10 @@
               </v-tooltip>
             </div>
             <p
-              v-if="selectedVariant"
+              v-if="selectedVariant?.color"
               class="text-body-2 text-medium-emphasis mt-1"
             >
-              {{ selectedVariant.color || "Standard" }}
+              {{ selectedVariant.color }}
             </p>
           </div>
 
