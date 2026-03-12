@@ -21,7 +21,12 @@
             <v-icon size="18" color="medium-emphasis">{{
               isGroupOpen(item) ? "mdi-chevron-down" : "mdi-chevron-right"
             }}</v-icon>
-            <v-chip size="small" variant="tonal" label>{{ item.value }}</v-chip>
+            <v-chip
+              size="small"
+              variant="tonal"
+              label
+              :color="props.groupBy === 'material' && item.value ? materialColor(item.value) : undefined"
+            >{{ item.value }}</v-chip>
             <span class="text-caption text-medium-emphasis"
               >{{ item.items.length }} spool{{
                 item.items.length === 1 ? "" : "s"
@@ -66,9 +71,6 @@
               >Spent</v-chip
             >
           </div>
-          <v-chip size="x-small" variant="tonal">{{
-            item.filamentType?.material
-          }}</v-chip>
           <v-chip
             v-if="item.filamentType?.color"
             class="ml-2"
@@ -79,6 +81,18 @@
           >
         </div>
       </div>
+    </template>
+
+    <template #item.material="{ item }">
+      <v-chip
+        v-if="item.filamentType?.material"
+        size="x-small"
+        variant="tonal"
+        :color="materialColor(item.filamentType.material)"
+      >
+        {{ item.filamentType.material }}
+      </v-chip>
+      <span v-else class="text-medium-emphasis">—</span>
     </template>
 
     <template #item.weight="{ item }">
@@ -208,6 +222,7 @@ const perPageOptions = [10, 25, 50, 100];
 
 const headers = computed(() => [
   { title: "Filament", key: "filament", sortable: false },
+  { title: "Material", key: "material", sortable: false },
   { title: "Weight", key: "weight", sortable: false },
   { title: "Status", key: "orderStatus", sortable: false },
   ...(!smAndDown.value
@@ -240,6 +255,24 @@ function onOptions({ page, itemsPerPage, sortBy }) {
     sortBy: sort?.key ?? null,
     sortOrder: sort?.order ?? null,
   });
+}
+
+function materialColor(str) {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    hash |= 0;
+  }
+  const hue = Math.abs(hash) % 360;
+  // hsl → hex so Vuetify's tonal variant can derive bg + text correctly
+  const s = 0.65, l = 0.5;
+  const a = s * Math.min(l, 1 - l);
+  const f = (n) => {
+    const k = (n + hue / 30) % 12;
+    const c = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+    return Math.round(255 * c).toString(16).padStart(2, "0");
+  };
+  return `#${f(0)}${f(8)}${f(4)}`;
 }
 
 function netWeightPct(spool) {
