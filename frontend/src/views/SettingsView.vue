@@ -49,6 +49,29 @@
           </v-card-text>
         </v-card>
 
+        <!-- Display Preferences -->
+        <v-card rounded="xl" class="mb-4">
+          <v-card-title class="pa-4 pb-2 d-flex align-center gap-2">
+            <v-icon color="primary">mdi-table-cog</v-icon>
+            Display Preferences
+          </v-card-title>
+          <v-card-text>
+            <v-select
+              v-model="tableGroupBy"
+              :items="groupByOptions"
+              item-title="label"
+              item-value="value"
+              label="Default table grouping"
+              prepend-inner-icon="mdi-group"
+              variant="outlined"
+              density="compact"
+              hint="How spools are grouped in the filament table"
+              persistent-hint
+              @update:model-value="saveDisplayPrefs"
+            />
+          </v-card-text>
+        </v-card>
+
         <!-- Change Password -->
         <v-card rounded="xl" class="mb-4">
           <v-card-title class="pa-4 pb-2 d-flex align-center gap-2">
@@ -282,6 +305,21 @@ const backendVersion = ref('…');
 
 const username = ref(authStore.user?.username || '');
 const email = ref(authStore.user?.email || '');
+
+// ── Display prefs ─────────────────────────────────────────────────────────────
+const tableGroupBy = ref(authStore.preferences.tableGroupBy ?? 'material');
+const groupByOptions = [
+  { label: 'Material', value: 'material' },
+  { label: 'Brand',    value: 'brand' },
+  { label: 'Disabled', value: 'none' },
+];
+
+watch(() => authStore.preferences.tableGroupBy, (val) => { tableGroupBy.value = val ?? 'material'; });
+
+async function saveDisplayPrefs() {
+  await authStore.updatePreferences({ tableGroupBy: tableGroupBy.value });
+  uiStore.notify({ message: 'Display preferences saved', type: 'success' });
+}
 
 // ── Scan & Scale prefs ────────────────────────────────────────────────────────
 const defaultScaleId = ref(authStore.preferences.defaultScaleId ?? null);

@@ -34,7 +34,11 @@
     <template #item.filament="{ item }">
       <div class="d-flex align-center">
         <v-tooltip
-          :text="item.filamentType?.color || item.filamentType?.material || 'No color'"
+          :text="
+            item.filamentType?.color ||
+            item.filamentType?.material ||
+            'No color'
+          "
           location="top"
         >
           <template #activator="{ props: tip }">
@@ -252,5 +256,4 @@ function weightColor(spool) {
   if (pct > 20) return "warning";
   return "error";
 }
-
 </script>

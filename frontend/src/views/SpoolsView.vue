@@ -140,20 +140,6 @@
               </v-btn>
             </v-btn-toggle>
           </v-col>
-          <v-col cols="auto">
-            <v-select
-              v-model="groupBy"
-              :items="groupOptions"
-              item-title="label"
-              item-value="value"
-              label="Group by"
-              variant="outlined"
-              density="compact"
-              hide-details
-              style="min-width: 140px"
-              @update:modelValue="onGroupChange"
-            />
-          </v-col>
         </v-row>
 
             <SpoolTable
@@ -499,18 +485,13 @@ const page = ref(1);
 const pageSize = ref(25);
 const sortBy = ref('createdAt');
 const sortOrder = ref('desc');
-const groupBy = ref('material');
+const groupBy = computed(() => authStore.preferences.tableGroupBy ?? 'material');
 
 const sortOptions = [
   { label: 'Date Added', value: 'createdAt' },
   { label: 'Weight',     value: 'weight' },
   { label: 'Brand',      value: 'brand' },
   { label: 'Color (Hue)', value: 'hue' },
-];
-const groupOptions = [
-  { label: 'Material', value: 'material' },
-  { label: 'Brand',    value: 'brand' },
-  { label: 'None',     value: 'none' },
 ];
 
 let searchTimer = null;
@@ -557,12 +538,6 @@ function onSortChange() {
   authStore.updatePreferences({ spoolSortBy: sortBy.value, spoolSortOrder: sortOrder.value });
 }
 
-function onGroupChange() {
-  page.value = 1;
-  loadPage();
-  authStore.updatePreferences({ spoolGroupBy: groupBy.value });
-}
-
 // ── Summary tab ───────────────────────────────────────────────────────────────
 const summarySearch = ref('');
 const summaryMaterialFilter = ref(null);
@@ -583,7 +558,7 @@ const summarySortBy = computed(() => {
 });
 
 const summaryGroupBy = computed(() => {
-  const pref = authStore.preferences.spoolGroupBy ?? 'material';
+  const pref = authStore.preferences.tableGroupBy ?? 'material';
   if (pref === 'material') return [{ key: 'material', order: 'asc' }];
   if (pref === 'brand')    return [{ key: 'brand',    order: 'asc' }];
   return [];
@@ -647,7 +622,6 @@ function formatGrams(g) {
 onMounted(async () => {
   sortBy.value    = authStore.preferences.spoolSortBy    ?? 'createdAt';
   sortOrder.value = authStore.preferences.spoolSortOrder ?? 'desc';
-  groupBy.value   = authStore.preferences.spoolGroupBy   ?? 'material';
 
   const [, filters] = await Promise.all([
     loadPage(),
@@ -690,6 +664,7 @@ async function handleCreated() {
 }
 
 watch(() => spoolStore.wsChangeCount, () => loadPage());
+watch(groupBy, () => { page.value = 1; loadPage(); });
 
 async function handleDelete(spoolId) {
   await spoolStore.deleteSpool(spoolId);

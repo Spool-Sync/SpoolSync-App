@@ -5,7 +5,7 @@ import apiClient from '@/services/apiClient';
 export const useAuthStore = defineStore('auth', () => {
   const user = ref(null);
   const token = ref(null);
-  const preferences = ref({ favoriteBrands: [], ingestStationId: null, useIngestMode: false, defaultScaleId: null, autoOpenOnScale: true, spoolSortBy: 'createdAt', spoolSortOrder: 'desc', spoolGroupBy: 'material' });
+  const preferences = ref({ favoriteBrands: [], ingestStationId: null, useIngestMode: false, defaultScaleId: null, autoOpenOnScale: true, spoolSortBy: 'createdAt', spoolSortOrder: 'desc', tableGroupBy: 'material' });
 
   const isAuthenticated = computed(() => !!token.value);
 
@@ -45,7 +45,7 @@ export const useAuthStore = defineStore('auth', () => {
     } finally {
       token.value = null;
       user.value = null;
-      preferences.value = { favoriteBrands: [], ingestStationId: null, useIngestMode: false, defaultScaleId: null, autoOpenOnScale: true, spoolSortBy: 'createdAt', spoolSortOrder: 'desc', spoolGroupBy: 'material' };
+      preferences.value = { favoriteBrands: [], ingestStationId: null, useIngestMode: false, defaultScaleId: null, autoOpenOnScale: true, spoolSortBy: 'createdAt', spoolSortOrder: 'desc', tableGroupBy: 'material' };
       localStorage.removeItem('token');
     }
   }
@@ -66,7 +66,7 @@ export const useAuthStore = defineStore('auth', () => {
         autoOpenOnScale: data.autoOpenOnScale ?? true,
         spoolSortBy: data.spoolSortBy ?? 'createdAt',
         spoolSortOrder: data.spoolSortOrder ?? 'desc',
-        spoolGroupBy: data.spoolGroupBy ?? 'material',
+        tableGroupBy: data.tableGroupBy ?? 'material',
       };
     } catch {
       // silently fall back to defaults
@@ -86,7 +86,7 @@ export const useAuthStore = defineStore('auth', () => {
         autoOpenOnScale: data.autoOpenOnScale ?? true,
         spoolSortBy: data.spoolSortBy ?? 'createdAt',
         spoolSortOrder: data.spoolSortOrder ?? 'desc',
-        spoolGroupBy: data.spoolGroupBy ?? 'material',
+        tableGroupBy: data.tableGroupBy ?? 'material',
       };
     } catch {
       // keep optimistic update on failure
