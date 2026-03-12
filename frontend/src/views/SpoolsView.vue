@@ -112,6 +112,17 @@
 
         <!-- Sort + Group controls -->
         <v-row dense class="mb-3 align-center">
+          <v-col cols="auto">
+            <v-switch
+              v-model="showSpent"
+              label="Show spent"
+              color="primary"
+              density="compact"
+              hide-details
+              inset
+              @update:model-value="resetAndLoad"
+            />
+          </v-col>
           <v-col cols="auto" class="d-flex align-center ga-2">
             <v-select
               v-model="sortBy"
@@ -455,6 +466,7 @@ async function confirmPrintingDrop() {
 }
 
 // ── Spools tab — filters & pagination ────────────────────────────────────────
+const showSpent = ref(false);
 const search = ref(route.query.search ?? '');
 const materialFilter = ref(route.query.material ?? null);
 const colorFilter = ref(route.query.color ?? null);
@@ -518,6 +530,7 @@ async function loadPage() {
       ...(sortBy.value && { sortBy: sortBy.value }),
       ...(sortOrder.value && { sortOrder: sortOrder.value }),
       ...(groupBy.value && groupBy.value !== 'none' && { groupBy: groupBy.value }),
+      ...(showSpent.value && { includeSpent: 'true' }),
     });
     tableSpools.value = result.items;
     total.value = result.total;

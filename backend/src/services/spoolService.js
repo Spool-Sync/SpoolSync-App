@@ -103,7 +103,7 @@ function hexToHue(hex) {
   return h < 0 ? h + 360 : h;
 }
 
-export async function list({ locationId, printerId, orderStatus, search, material, color, page, pageSize, sortBy, sortOrder, groupBy } = {}) {
+export async function list({ locationId, printerId, orderStatus, search, material, color, includeSpent, page, pageSize, sortBy, sortOrder, groupBy } = {}) {
   const pg = parseInt(page) || 1;
   const ps = Math.min(parseInt(pageSize) || 25, 200);
 
@@ -116,6 +116,7 @@ export async function list({ locationId, printerId, orderStatus, search, materia
 
   const where = {
     ...(printerId && { spoolHolder: { attachedPrinterId: printerId } }),
+    ...(includeSpent !== 'true' && includeSpent !== true && { status: { not: 'SPENT' } }),
     ...(orderStatus && { orderStatus }),
     ...(locationId && { storageLocations: { some: { storageLocationId: locationId } } }),
     ...(Object.keys(filamentTypeFilter).length && { filamentType: filamentTypeFilter }),
