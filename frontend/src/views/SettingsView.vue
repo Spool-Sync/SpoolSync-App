@@ -314,8 +314,6 @@ const groupByOptions = [
   { label: 'Disabled', value: 'none' },
 ];
 
-watch(() => authStore.preferences.tableGroupBy, (val) => { tableGroupBy.value = val ?? 'material'; });
-
 async function saveDisplayPrefs() {
   await authStore.updatePreferences({ tableGroupBy: tableGroupBy.value });
   uiStore.notify({ message: 'Display preferences saved', type: 'success' });

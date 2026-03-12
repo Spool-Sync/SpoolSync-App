@@ -66,7 +66,7 @@ export const useAuthStore = defineStore('auth', () => {
         autoOpenOnScale: data.autoOpenOnScale ?? true,
         spoolSortBy: data.spoolSortBy ?? 'createdAt',
         spoolSortOrder: data.spoolSortOrder ?? 'desc',
-        tableGroupBy: data.tableGroupBy ?? 'material',
+        tableGroupBy: data.tableGroupBy ?? data.spoolGroupBy ?? 'material',
       };
     } catch {
       // silently fall back to defaults
@@ -86,7 +86,7 @@ export const useAuthStore = defineStore('auth', () => {
         autoOpenOnScale: data.autoOpenOnScale ?? true,
         spoolSortBy: data.spoolSortBy ?? 'createdAt',
         spoolSortOrder: data.spoolSortOrder ?? 'desc',
-        tableGroupBy: data.tableGroupBy ?? 'material',
+        tableGroupBy: data.tableGroupBy ?? data.spoolGroupBy ?? 'material',
       };
     } catch {
       // keep optimistic update on failure
